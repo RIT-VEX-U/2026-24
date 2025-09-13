@@ -19,6 +19,7 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include_directories(include)
+include_directories(csdk/include)
 include_directories(core/include)
 include_directories(vendor/eigen)
 include_directories(vendor/gcem/include)

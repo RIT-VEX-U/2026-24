@@ -286,12 +286,12 @@ set(CMAKE_OBJDUMP                   ${VEX_COMPILER_PATH}/llvm-objdump${EXE_SUFFI
 set(CMAKE_SIZE                      ${VEX_COMPILER_PATH}/llvm-size${EXE_SUFFIX})
 
 # use the vex linker script
-set(CMAKE_C_LINK_EXECUTABLE  "<CMAKE_LINKER> -z norelro -T \"${VEX_SDK_PATH}/lscript1.ld\"  --gc-sections -L\"${VEX_SDK_PATH}\" -L\"${VEX_TOOLCHAIN_PATH}/lib/clang-runtimes/newlib/arm-none-eabi/armv7a_soft_vfpv3_d16_unaligned/lib\" <OBJECTS> -o <TARGET> --start-group -lv5rt -lc++ -lc -lm -lclang_rt.builtins --end-group")
+set(CMAKE_C_LINK_EXECUTABLE  "<CMAKE_LINKER> -z norelro -T \"${VEX_SDK_PATH}/lscript1.ld\"  --gc-sections -L\"${VEX_TOOLCHAIN_PATH}/lib/clang-runtimes/newlib/arm-none-eabi/armv7a_soft_vfpv3_d16_unaligned/lib\" <OBJECTS> -o <TARGET> --start-group -lc++ -lc -lm -lclang_rt.builtins --end-group")
 set(CMAKE_CXX_LINK_EXECUTABLE ${CMAKE_C_LINK_EXECUTABLE})
 
 add_compile_options(-DVexV5)
 
-set(CFLAGS_CL "-target thumbv7-none-eabi -fshort-enums -Wno-unknown-attributes -U__INT32_TYPE__ -U__UINT32_TYPE__ -D__INT32_TYPE__=long -D__UINT32_TYPE__=\"unsigned long\" -U__ARM_NEON__ -U__ARM_NEON")
+set(CFLAGS_CL "-target thumbv7-none-eabi -fshort-enums -Wno-unknown-attributes --config=OmaxLTO.cfg  -U__ARM_NEON__ -U__ARM_NEON")
 set(CFLAGS_V7 "-march=armv7-a -mfpu=neon -mfloat-abi=softfp")
 
 if(VEX_QUIET_BUILD)
@@ -312,7 +312,7 @@ include_directories(SYSTEM "${VEX_TOOLCHAIN_PATH}/lib/clang-runtimes/newlib/arm-
 include_directories(SYSTEM "${VEX_TOOLCHAIN_PATH}/lib/clang-runtimes/newlib/arm-none-eabi/armv7a_soft_vfpv3_d16_unaligned/include")
 include_directories(SYSTEM "${VEX_TOOLCHAIN_PATH}/lib/clang/20/include")
 
-include_directories(SYSTEM "${VEX_SDK_PATH}/include")
+# include_directories(SYSTEM "${VEX_SDK_PATH}/include")
 
 function(vex_add_executable target_name)
     add_executable(${target_name})

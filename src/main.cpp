@@ -1,20 +1,52 @@
-#include "vex.h"
+#include "jumptable-api/display.h"
+#include "jumptable-api/system.h"
 
-#include "robot-config.h"
 
-#include "competition/autonomous.h"
-#include "competition/opcontrol.h"
+extern uint32_t *__bss_start;
+extern uint32_t *__bss_end;
+extern uint32_t *__sbss_start;
+extern uint32_t *__sbss_end;
 
-vex::competition comp;
+extern void *__impure_ptr_slot;
+
+extern void init_array(void);
+extern void fini_array(void);
+
+
 
 /**
  * Entry point to the program. No code should be placed here;
  * instead use competition/opcontrol.cpp and
  * competition/autonomous.cpp
  */
-int main() {
-  comp.autonomous(autonomous);
-  comp.drivercontrol(opcontrol);
+// int main() {
+//
+//   vexDisplayPrintf(20, 20, 255, "printf\n");
+//
+// }
 
-  robot_init();
+extern "C" {
+void vexStartup(void) __attribute__((section(".boot")));
+void vexStartup() {
+
+  // Zero from __bss_start__ to __bss_end__
+  uint32_t *p = __bss_start;
+  uint32_t *end = __bss_end;
+  while (p < end) {
+    *p++ = 0;
+  }
+
+  // Zero from __sbss_start__ to __sbss_end__
+  uint32_t *p2 = __sbss_start;
+  uint32_t *end2 = __sbss_end;
+  while (p2 < end2) {
+    *p++ = 0;
+  }
+
+  // init_array();
+  // main();
+  // fini_array();
+
+  
+}
 }
