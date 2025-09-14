@@ -301,7 +301,7 @@ else()
 endif()
 
 set(CMAKE_C_FLAGS                   "${CFLAGS_CL} ${CFLAGS_V7} -Os ${WARNING_FLAGS} -ansi -std=c23")
-set(CMAKE_CXX_FLAGS                 "${CFLAGS_CL} ${CFLAGS_V7} -Os ${WARNING_FLAGS} -fno-rtti -fno-threadsafe-statics -fno-exceptions  -std=c++23 -ffunction-sections -fdata-sections" CACHE INTERNAL "")
+set(CMAKE_CXX_FLAGS                 "${CFLAGS_CL} ${CFLAGS_V7} -Os ${WARNING_FLAGS} -fno-rtti -fno-threadsafe-statics -fno-exceptions -std=c++23 -ffunction-sections -fdata-sections" CACHE INTERNAL "")
 
 set(CMAKE_C_FLAGS_DEBUG             "" CACHE INTERNAL "")
 set(CMAKE_C_FLAGS_RELEASE           "" CACHE INTERNAL "")
