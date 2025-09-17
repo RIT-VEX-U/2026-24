@@ -9,9 +9,9 @@
     vex::motor middle_left(PORT3, vex::gearSetting::ratio6_1, true);
     vex::motor_group left_motors(front_left, back_left, middle_left);
 
-    vex::motor back_right(PORT6, vex::gearSetting::ratio6_1, false);
+    vex::motor back_right(PORT8, vex::gearSetting::ratio6_1, false);
     vex::motor middle_right(PORT7, vex::gearSetting::ratio6_1, false);
-    vex::motor front_right(PORT8, vex::gearSetting::ratio6_1, false);
+    vex::motor front_right(PORT20, vex::gearSetting::ratio6_1, false);
     vex::motor_group right_motors(back_right, middle_right, front_right);
 
     //SENSORS
