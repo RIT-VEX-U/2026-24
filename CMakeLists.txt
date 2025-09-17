@@ -15,7 +15,7 @@ set(VEX_PROJECT_NAME "${VEX_PROJECT_NAME}" CACHE STRING "Name from .vscode/vex_p
 
 project(${VEX_PROJECT_NAME} LANGUAGES C CXX)
 
-set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include_directories(include)
