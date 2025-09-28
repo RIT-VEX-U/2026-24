@@ -4,18 +4,18 @@
     vex::controller con;
 
     //MOTORS
-    vex::motor front_left(PORT1, vex::gearSetting::ratio6_1, true);
-    vex::motor back_left(PORT2, vex::gearSetting::ratio6_1, true);
-    vex::motor middle_left(PORT3, vex::gearSetting::ratio6_1, true);
+    vex::motor front_left(PORT4, vex::gearSetting::ratio6_1, true);
+    vex::motor back_left(PORT7, vex::gearSetting::ratio6_1, true);
+    vex::motor middle_left(PORT9, vex::gearSetting::ratio6_1, true);
     vex::motor_group left_motors(front_left, back_left, middle_left);
 
-    vex::motor back_right(PORT8, vex::gearSetting::ratio6_1, false);
-    vex::motor middle_right(PORT7, vex::gearSetting::ratio6_1, false);
-    vex::motor front_right(PORT20, vex::gearSetting::ratio6_1, false);
+    vex::motor back_right(PORT6, vex::gearSetting::ratio6_1, false);
+    vex::motor middle_right(PORT20, vex::gearSetting::ratio6_1, false);
+    vex::motor front_right(PORT10, vex::gearSetting::ratio6_1, false);
     vex::motor_group right_motors(back_right, middle_right, front_right);
 
     //SENSORS
-    vex::inertial imu(PORT12);
+    vex::inertial imu(PORT19);
     PID::pid_config_t drive_pid_cfg{
         .p = 0.0,
         .i = 0.0,
@@ -96,15 +96,14 @@ void robot_init() {
             vexDelay(1000);
         };
     }
-    Brain.Screen.printAt(20, 20, "STSRTED");
+    Brain.Screen.printAt(20, 20, "STARTED");
     printf("Negotiation Finished\n");
     
 
     while (true) {
-        // printf("P: %f, I: %f, D: %f, Error: %f\n", drive_pid.config.p, drive_pid.config.i, drive_pid.config.d, drive_pid.get_error());
+        printf("P: %f, I: %f, D: %f, Error: %f, Setpoint: %f, Enabled? %d, X: %f, Y: %f, ROT: %F\n", drive_pid.config.p, drive_pid.config.i, drive_pid.config.d, drive_pid.get_error(), tuner.GetSetpoint());
         registry_contoller.send_data(chan1);
         registry_contoller.send_data(chan2);
-        printf("%s\n", tuner_data->pretty_print_data().c_str());
         vexDelay(100);
     }
 }

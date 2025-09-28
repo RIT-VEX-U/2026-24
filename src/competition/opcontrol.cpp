@@ -18,10 +18,12 @@ void opcontrol() {
     });
 
     while (true) {
-    //     double left = (double)con.Axis3.position() / 100;
-    //     double right = (double)con.Axis1.position() / 100;
-    //     drive_sys.drive_arcade(left, right, 1, TankDrive::BrakeType::None);
+        if(!tuner.IsTuning()){
+            double left = (double)con.Axis3.position() / 100;
+        double right = (double)con.Axis1.position() / 100;
+        drive_sys.drive_arcade(left, right, 1, TankDrive::BrakeType::None);
         vexDelay(100);
+        }
     }
 }
 
