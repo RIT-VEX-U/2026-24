@@ -17,7 +17,7 @@
     //SENSORS
     vex::inertial imu(PORT19);
     PID::pid_config_t drive_pid_cfg{
-        .p = 0.0,
+        .p = 0.6,
         .i = 0.0,
         .d = 0.0,
         .deadband = 0.5,
@@ -71,4 +71,8 @@ void robot_init() {
         vexDelay(10);
     }
     Brain.Screen.printAt(20, 20, "STARTED");
+    while(true){
+        printf("x: %f, y: %f, rot: %f\n", odom.get_position().x(),odom.get_position().y(), odom.get_position().rotation().degrees());
+        vexDelay(20);
+    }
 }
