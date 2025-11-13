@@ -4,6 +4,8 @@
 #include <vex_rotation.h>
 #include <vex_triport.h>
 #include <vex_units.h>
+#include "core/device/wrapper_device.hpp"
+#include "core/device/vdb/registry-controller.hpp"
 //VEX
 vex::controller con;
 vex::brain Brain;
@@ -77,9 +79,9 @@ TankDrive drive_sys(left_motors, right_motors, robot_config, &odom); //define ho
 IntakeSys intake_sys(toproller, frontroller, backroller, agitatorroller, lower_intake_sensor, zlight_board);
 
 
-// VDB::Device dev1{vex::PORT11, 115200 * 2};
+VDB::Device dev1{vex::PORT11, 115200 * 2};
 
-// VDP::RegistryController registry_contoller{&dev1};
+VDP::RegistryController registry_contoller{&dev1};
 
 void robot_init() {
    imu.calibrate();
