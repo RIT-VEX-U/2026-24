@@ -3,7 +3,7 @@
 #include "robot-config.h"
 #include <cstdio>
 
-bool enable_drive = false;
+bool enable_drive = true;
 bool drive_tank = true;
 
 void opcontrol() {
@@ -24,11 +24,20 @@ void opcontrol() {
   });
   con.ButtonA.pressed([](){
     enable_drive = false;
-    CommandController cc{drive_sys.TurnToHeadingCmd(90)};
+    CommandController cc{
+      drive_sys.DriveForwardCmd(24)
+    };
     cc.run();
     enable_drive = true;
   });
-  
+  con.ButtonB.pressed([](){
+    enable_drive = false;
+    CommandController cc{
+      drive_sys.TurnToHeadingCmd(90)
+    };
+    cc.run();
+    enable_drive = true;
+  });
 
   con.ButtonLeft.pressed([](){
     drive_tank = !drive_tank;

@@ -393,7 +393,7 @@ if [ "$UPLOAD" = true ]; then
     
     print_color $YELLOW "Uploading $PROJECT_NAME.bin to slot $UPLOAD_SLOT..."
     
-    if ! doas "$VEXCOM_PATH" -w "$BIN_FILE" --progress -s "$UPLOAD_SLOT"; then
+    if ! "$VEXCOM_PATH" -w "$BIN_FILE" --progress -s "$UPLOAD_SLOT"; then
         print_color $RED "Upload failed!"
         exit 1
     fi

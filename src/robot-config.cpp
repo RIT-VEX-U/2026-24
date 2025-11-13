@@ -1,5 +1,6 @@
 #include "robot-config.h"
 #include "core/utils/math/geometry/rotation2d.h"
+#include "core/utils/controls/pidff.h"
 #include <vex_optical.h>
 #include <vex_rotation.h>
 #include <vex_triport.h>
@@ -44,9 +45,8 @@ vex::optical middle_intake_sensor(PORT13);
 // lidar at 16
 
 PID::pid_config_t drive_pid_cfg{
-   .p = 0.1,
-   .i = 0,
-   .d = 0.01,
+   .p = 0.22,
+   .d = 0.025,
    .deadband = 0.5,
    .on_target_time = 0.1,
 };
@@ -55,14 +55,12 @@ PID::pid_config_t drive_pid_cfg{
 PID drive_pid(drive_pid_cfg);
 
 PID::pid_config_t turn_pid_cfg{
-   .p = 0.004,
-   .i = 0.0001,
-   .d = 0.0005,
+   .p = 0.421140,
+   .d = 0.062733,
    .deadband = 0.5,
    .on_target_time = 0.1,
    .error_method = PID::ERROR_TYPE::ANGULAR,
 };
-
 PID turn_pid(turn_pid_cfg);
 
 robot_specs_t robot_config = {
