@@ -2,27 +2,33 @@
 
 #include "core.h"
 #include "vex.h"
+#include "subsystems/Intake.h"
+#include "core/subsystems/odometry/odometry_onewheel.h"
+#include <vex_optical.h>
+#include <vex_triport.h>
 
+extern vex::controller con;
+
+//MOTORS
+
+extern robot_specs_t robot_config;
+extern OdometryOneWheel odom;
+extern TankDrive drive_sys;
+extern IntakeSys intake_sys;
 
 // ================ INPUTS ================
 // Digital sensors
 
 // Analog sensors
 
-
-
 // ================ OUTPUTS ================
 // Motors
 
 // Pneumatics
-
-
+extern vex::digital_out match_loader;
 
 // ================ SUBSYSTEMS ================
-
-
 
 // ================ UTILS ================
 
 void robot_init();
-
