@@ -1,4 +1,7 @@
 #include "robot-config.h"
+#include "core/subsystems/screen.h"
+#include "core/utils/controls/feedforward.h"
+#include "core/utils/controls/motion_controller.h"
 #include "core/utils/math/geometry/rotation2d.h"
 #include "core/utils/controls/pidff.h"
 #include <vex_optical.h>
@@ -45,47 +48,61 @@ vex::optical middle_intake_sensor(PORT13);
 // lidar at 16
 
 PID::pid_config_t drive_pid_cfg{
-   .p = 0.22,
-   .d = 0.025,
-   .deadband = 0.5,
+   .p = 0.4,
+   .d = 0.0165,
+   .deadband = 1,
    .on_target_time = 0.1,
 };
 
+FeedForward::ff_config_t drive_ff_cfg{
+  .kV = 0.149,
+  .kA = 0.032,
+};
 
 PID drive_pid(drive_pid_cfg);
 
+MotionController::m_profile_cfg_t drive_motion_cfg{
+  .max_v = 80,
+  .accel = 150,
+  .pid_cfg = drive_pid_cfg,
+  .ff_cfg = drive_ff_cfg,
+};
+
+MotionController drive_motion(drive_motion_cfg);
+
 PID::pid_config_t turn_pid_cfg{
-   .p = 0.421140,
-   .d = 0.062733,
-   .deadband = 0.5,
+   .p = 0.025,
+   .d = 0.0015,
+   .deadband = 3,
    .on_target_time = 0.1,
-   .error_method = PID::ERROR_TYPE::ANGULAR,
 };
 PID turn_pid(turn_pid_cfg);
 
+
 robot_specs_t robot_config = {
    .robot_radius = 10,
-   .odom_wheel_diam = 2,
-   .odom_gear_ratio = 1,
+   .odom_wheel_diam = 2.75,
+   .odom_gear_ratio = 0.75,
    .dist_between_wheels = 12.4,
    .drive_feedback = &drive_pid,
    .turn_feedback = &turn_pid,
 };
 
-OdometryOneWheel odom(&odompod, robot_config, Translation2d(-1.5, 1.4), &imu);
+// OdometryOneWheel odom(&odompod, robot_config, Translation2d(-1.5, 1.4), &imu);
+OdometryTank odom(left_motors, right_motors, robot_config, &imu);
 TankDrive drive_sys(left_motors, right_motors, robot_config, &odom); //define how robot moves
 IntakeSys intake_sys(toproller, frontroller, backroller, agitatorroller, lower_intake_sensor, zlight_board);
 
-
-VDB::Device dev1{vex::PORT11, 115200 * 2};
-
-VDP::RegistryController registry_contoller{&dev1};
-
 void robot_init() {
+  std::vector<screen::Page *> pages = {
+      new screen::PIDPage(turn_pid, "turnpid"),
+      new screen::OdometryPage(odom, 15, 15, true),
+      new screen::PIDPage(drive_pid, "drivepid")
+    };
    imu.calibrate();
    while(imu.isCalibrating()){
       vexDelay(10);
    }
   odom.set_position({0,0,0});
-  Brain.Screen.printAt(20, 20, "waa");
+  screen::start_screen(Brain.Screen, pages);
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core.h"
+#include "core/subsystems/odometry/odometry_tank.h"
 #include "vex.h"
 #include "subsystems/Intake.h"
 #include "core/subsystems/odometry/odometry_onewheel.h"
@@ -12,7 +13,8 @@ extern vex::controller con;
 //MOTORS
 
 extern robot_specs_t robot_config;
-extern OdometryOneWheel odom;
+// extern OdometryOneWheel odom;
+extern OdometryTank odom;
 extern TankDrive drive_sys;
 extern IntakeSys intake_sys;
 

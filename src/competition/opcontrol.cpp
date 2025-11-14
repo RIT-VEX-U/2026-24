@@ -33,7 +33,7 @@ void opcontrol() {
   con.ButtonB.pressed([](){
     enable_drive = false;
     CommandController cc{
-      drive_sys.TurnToHeadingCmd(90)
+      drive_sys.TurnDegreesCmd(90)
     };
     cc.run();
     enable_drive = true;
