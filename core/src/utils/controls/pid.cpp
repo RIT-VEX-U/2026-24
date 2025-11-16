@@ -136,6 +136,8 @@ bool PID::is_on_target() {
             is_checking_on_target = true;
         } else if (pid_timer.value() - on_target_last_time > config.on_target_time) {
             return true;
+        } else if(config.i == 0 && fabs(this->out) < 1e-9){
+            return true;
         }
     } else {
         is_checking_on_target = false;

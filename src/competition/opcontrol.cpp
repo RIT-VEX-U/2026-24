@@ -24,8 +24,9 @@ void opcontrol() {
   });
   con.ButtonA.pressed([](){
     enable_drive = false;
+    odom.set_position({0,0,0});
     CommandController cc{
-      drive_sys.DriveForwardCmd(24)
+      drive_sys.DriveToPointCmd({24, 24}),
     };
     cc.run();
     enable_drive = true;

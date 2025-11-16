@@ -116,7 +116,7 @@ int IntakeSys::thread_fn(void *ptr){
       }
       else if(self.intake_state == IntakeState::OUTMIDDLE){
         self.top_roller.spin(vex::forward, self.intake_volts, vex::volt);
-        self.front_roller.spin(vex::forward, self.intake_volts, vex::volt);
+        self.front_roller.spin(vex::forward, 8, vex::volt);
         self.back_roller.spin(vex::forward, self.intake_volts, vex::volt);
         self.agitator_roller.spin(vex::reverse, self.intake_volts, vex::volt);
       }

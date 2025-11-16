@@ -78,6 +78,12 @@ PID::pid_config_t turn_pid_cfg{
 };
 PID turn_pid(turn_pid_cfg);
 
+PID::pid_config_t correction_pid{
+   .p = 0.008,
+   .d = 0.0012,
+   .deadband = 3,
+   .on_target_time = 0.1,
+};
 
 robot_specs_t robot_config = {
    .robot_radius = 10,
@@ -86,6 +92,7 @@ robot_specs_t robot_config = {
    .dist_between_wheels = 12.4,
    .drive_feedback = &drive_pid,
    .turn_feedback = &turn_pid,
+  .correction_pid = correction_pid,
 };
 
 // OdometryOneWheel odom(&odompod, robot_config, Translation2d(-1.5, 1.4), &imu);
@@ -103,6 +110,5 @@ void robot_init() {
    while(imu.isCalibrating()){
       vexDelay(10);
    }
-  odom.set_position({0,0,0});
   screen::start_screen(Brain.Screen, pages);
 }
