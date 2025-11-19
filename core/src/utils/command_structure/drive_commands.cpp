@@ -160,6 +160,67 @@ void DriveToPointCommand::on_timeout() {
     drive_sys.reset_auto();
 }
 
+/**
+ * Construct a DriveForward Command
+ * @param drive_sys the drive system we are commanding
+ * @param feedback the feedback controller we are using to execute the drive
+ * @param x where to drive in the x dimension
+ * @param y where to drive in the y dimension
+ * @param dir the direction to drive
+ * @param max_speed 0 -> 1 percentage of the drive systems speed to drive at
+ */
+CurveToPointCommand::CurveToPointCommand(
+  TankDrive &drive_sys, Feedback &feedback, double x, double y, directionType dir, double max_speed, double end_speed
+)
+    : drive_sys(drive_sys), feedback(feedback), x(x), y(y), dir(dir), max_speed(max_speed), end_speed(end_speed) {}
+
+/**
+ * Construct a DriveForward Command
+ * @param drive_sys the drive system we are commanding
+ * @param feedback the feedback controller we are using to execute the drive
+ * @param translation the point to drive to
+ * @param dir the direction to drive
+ * @param max_speed 0 -> 1 percentage of the drive systems speed to drive at
+ */
+CurveToPointCommand::CurveToPointCommand(
+  TankDrive &drive_sys, Feedback &feedback, Translation2d translation, directionType dir, double max_speed,
+  double end_speed
+)
+    : drive_sys(drive_sys), feedback(feedback), x(translation.x()), y(translation.y()), dir(dir), max_speed(max_speed),
+      end_speed(end_speed) {
+    x = translation.x();
+    y = translation.y();
+}
+
+/**
+ * Run drive_to_point
+ * Overrides run from AutoCommand
+ * @returns true when execution is complete, false otherwise
+ */
+
+bool CurveToPointCommand::run() { return drive_sys.curve_to_point(x, y, dir, feedback, max_speed, end_speed); }
+
+/*
+ * Returns a string describing the commands functionality
+ */
+std::string CurveToPointCommand::toString() {
+    std::string returnStr = "Driving ";
+    returnStr.append((dir == vex::directionType::fwd) ? "forwards at " : "reverse at ");
+    returnStr.append(
+      " to (" + double_to_string(x) + ", " + double_to_string(y) + ") at " + double_to_string(max_speed * 100) +
+      "% speed"
+    );
+    return returnStr;
+}
+
+/**
+ * reset the drive system if we don't hit our target
+ */
+void CurveToPointCommand::on_timeout() {
+    drive_sys.stop();
+    drive_sys.reset_auto();
+}
+
 TurnToPointCommand::TurnToPointCommand(
   TankDrive &drive_sys, double x, double y, vex::directionType dir, double max_speed, double end_speed
 )

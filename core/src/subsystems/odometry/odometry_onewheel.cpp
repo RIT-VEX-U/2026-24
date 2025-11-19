@@ -97,9 +97,7 @@ Pose2d OdometryOneWheel::calculate_new_pos(
   double dx = dist_driven_delta - offset.y() * delta_theta;
   double dy = 0;
 
-  // Transform2d transform{dx, dy, delta_theta.radians()};
   Translation2d chg_point(dx, dy);
-  Translation2d new_point = old_pos.translation() + chg_point;
   Twist2d twist{dx, dy, delta_theta};
 
   // std::cout << twist << std::endl;

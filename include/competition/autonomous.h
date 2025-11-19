@@ -7,3 +7,4 @@ void autonomous();
 
 void red_auto_path();
 
+void skills();

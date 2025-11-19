@@ -149,6 +149,48 @@ private:
   double end_speed;
 };
 
+/**
+ * AutoCommand wrapper class for the drive_to_point function in the
+ * TankDrive class
+ */
+class CurveToPointCommand : public AutoCommand {
+public:
+  CurveToPointCommand(TankDrive &drive_sys, Feedback &feedback, double x, double y, directionType dir,
+                      double max_speed = 1, double end_speed = 0);
+  CurveToPointCommand(TankDrive &drive_sys, Feedback &feedback, Translation2d translation, directionType dir, double max_speed = 1,
+                      double end_speed = 0);
+
+  /**
+   * Run drive_to_point
+   * Overrides run from AutoCommand
+   * @returns true when execution is complete, false otherwise
+   */
+  bool run() override;
+
+  /*
+  * Returns a string describing the commands functionality
+  */
+  std::string toString() override;
+private:
+  // drive system to run the function on
+  TankDrive &drive_sys;
+
+  /**
+   * Cleans up drive system if we time out before finishing
+   */
+  void on_timeout() override;
+
+  // feedback controller to use
+  Feedback &feedback;
+
+  // parameters for drive_to_point
+  double x;
+  double y;
+  directionType dir;
+  double max_speed;
+  double end_speed;
+};
+
 class TurnToPointCommand: public AutoCommand{
   public:
 

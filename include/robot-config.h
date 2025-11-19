@@ -27,10 +27,12 @@ extern IntakeSys intake_sys;
 // Motors
 
 // Pneumatics
-extern vex::digital_out match_loader;
+extern vex::digital_out odompod_solonoid;
 
 // ================ SUBSYSTEMS ================
 
 // ================ UTILS ================
 
 void robot_init();
+    //get match load
+    // drive_sys.DriveForwardCmd(10, vex::reverse, 0.6),
