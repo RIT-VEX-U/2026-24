@@ -133,7 +133,7 @@ void IntakeSys::agitator_roller_behavior(bool sorting){
   else if(sorting){
     volts *= -1;
   }
-  if(intake_state == STOPPED || intake_state == IN || intake_state == OUTBOTTOM){
+  if(intake_state == STOPPED){
     agitator_roller.stop();
   }
   else{
