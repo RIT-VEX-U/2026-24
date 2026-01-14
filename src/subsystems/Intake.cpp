@@ -7,8 +7,8 @@
 #include <vex_triport.h>
 #include <vex_units.h>
 
-IntakeSys::IntakeSys(vex::motor top_roller, vex::motor front_roller, vex::motor back_roller, vex::motor  agitator_roller, vex::optical lower_intake_sensor, vex::optical middle_intake_sensor, vex::digital_out lightboard, vex::digital_out matchloader_sol) : 
-  top_roller(top_roller), front_roller(front_roller), back_roller(back_roller), agitator_roller(agitator_roller), lower_intake_sensor(lower_intake_sensor), middle_intake_sensor(middle_intake_sensor), lightboard(lightboard), matchloader_sol(matchloader_sol){
+IntakeSys::IntakeSys(vex::motor top_roller, vex::motor front_roller, vex::motor back_roller, vex::motor agitator_roller, vex::motor back_score_roller, vex::optical lower_intake_sensor, vex::optical middle_intake_sensor, vex::digital_out lightboard, vex::digital_out matchloader_sol) : 
+  top_roller(top_roller), front_roller(front_roller), back_roller(back_roller), agitator_roller(agitator_roller), back_score_roller(back_score_roller), lower_intake_sensor(lower_intake_sensor), middle_intake_sensor(middle_intake_sensor), lightboard(lightboard), matchloader_sol(matchloader_sol){
   task = vex::task(thread_fn, this);
 };
 
@@ -24,10 +24,13 @@ void IntakeSys::outmiddle(double volts){
   this->intake_volts = volts;
   intake_state = IntakeState::OUTMIDDLE;
 }
-
 void IntakeSys::outtop(double volts){
   this->intake_volts = volts;
   intake_state = IntakeState::OUTTOP;
+}
+void IntakeSys::outback(double volts) {
+  this->intake_volts = volts;
+  intake_state = IntakeState::OUTBACK;
 }
 void IntakeSys::intake_stop(){
   intake_state = IntakeState::STOPPED;
@@ -94,7 +97,7 @@ void IntakeSys::front_roller_behavior(bool jammed, bool sorting){
 
 void IntakeSys::top_roller_behavior(bool jammed, bool sorting){
   double volts = intake_volts;
-  if(!sorting && intake_state == OUTTOP){
+  if(!sorting && (intake_state == OUTTOP || intake_state == OUTBACK)){
     volts *= -1;
   }
   else if(sorting && intake_state == OUTMIDDLE){
@@ -127,7 +130,7 @@ void IntakeSys::back_roller_behavior(bool jammed, bool sorting){
 }
 void IntakeSys::agitator_roller_behavior(bool sorting){
   double volts = intake_volts;
-  if(!sorting && (intake_state == OUTBOTTOM || intake_state == OUTMIDDLE || intake_state == OUTTOP)){
+  if(!sorting && (intake_state == OUTBOTTOM || intake_state == OUTMIDDLE || intake_state == OUTTOP || intake_state == OUTBACK)){
     volts *= -1;
   }
   else if(sorting){
@@ -138,6 +141,20 @@ void IntakeSys::agitator_roller_behavior(bool sorting){
   }
   else{
     agitator_roller.spin(vex::forward, volts, vex::volt);
+  }
+}
+void IntakeSys::back_score_roller_behavior(bool jammed, bool sorting) {
+  double volts = intake_volts;
+  if(!sorting && intake_state == OUTBACK) {
+    volts *= -1;
+  }
+  if(jammed){
+    volts *= -1;
+  }
+  if(intake_state == STOPPED || intake_state == IN || intake_state == OUTBOTTOM || intake_state == OUTMIDDLE) {
+    back_score_roller.stop();
+  } else {
+    back_score_roller.spin(vex::forward, volts, vex::volt);
   }
 }
 
@@ -169,6 +186,7 @@ int IntakeSys::thread_fn(void *ptr){
     self.top_roller_behavior(self.motor_jammed(self.top_roller), sort_this_block);
     self.back_roller_behavior(self.motor_jammed(self.back_roller), sort_this_block);
     self.agitator_roller_behavior(self.motor_jammed(self.agitator_roller));
+    self.back_score_roller_behavior(self.motor_jammed(self.back_score_roller), sort_this_block);
     vexDelay(10);
   }
   return 0;
@@ -207,6 +225,13 @@ AutoCommand *IntakeSys::OutTopCmd(double volts) {
       this->intake_state = IntakeState::OUTTOP;
         return true;
     });
+}
+AutoCommand *IntakeSys::OutBackCmd(double volts) {
+  return new FunctionCommand([this, volts]() {
+    this->intake_volts = volts;
+    this->intake_state = IntakeState::OUTBACK;
+    return true;
+  });
 }
 AutoCommand *IntakeSys::IntakeStopCmd() {
     return new FunctionCommand([this]() {

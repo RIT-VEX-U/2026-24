@@ -27,7 +27,9 @@ extern IntakeSys intake_sys;
 // Motors
 
 // Pneumatics
-extern vex::digital_out odompod_solonoid;
+extern vex::digital_out right_wing_solonoid;
+extern vex::digital_out left_wing_solonoid;
+extern vex::digital_out right_stick_solonoid;
 
 // ================ SUBSYSTEMS ================
 

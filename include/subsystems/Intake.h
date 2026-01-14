@@ -9,10 +9,11 @@
 
 class IntakeSys{
 public:
-  IntakeSys(vex::motor top_roller, vex::motor front_roller, vex::motor back_roller, vex::motor agitator_roller, vex::optical lower_intake_sensor, vex::optical middle_intake_sensor, vex::digital_out lightboard, vex::digital_out matchloader_sol);
+  IntakeSys(vex::motor top_roller, vex::motor front_roller, vex::motor back_roller, vex::motor agitator_roller, vex::motor back_score_roller, vex::optical lower_intake_sensor, vex::optical middle_intake_sensor, vex::digital_out lightboard, vex::digital_out matchloader_sol);
 
   enum IntakeState{
     IN,
+    OUTBACK, // Like the restaurant
     OUTTOP,
     OUTMIDDLE,
     OUTBOTTOM,
@@ -31,6 +32,7 @@ public:
   AutoCommand *OutBottomCmd(double volts = 12);
   AutoCommand *OutMiddleCmd(double volts = 12);
   AutoCommand *OutTopCmd(double volts = 12);
+  AutoCommand *OutBackCmd(double volts = 12);
   AutoCommand *IntakeStopCmd();
   AutoCommand *ColorSortCmd(bool do_color_sort);
   AutoCommand *MatchLoaderCmd(bool do_color_sort);
@@ -43,6 +45,8 @@ public:
 
   void outtop(double volts = 12);
 
+  void outback(double volts = 12);
+
   void intake_stop();
 
   void remove_this_color(BlockColor color_to_remove);
@@ -54,6 +58,8 @@ public:
   void back_roller_behavior(bool jammed, bool sorting);
 
   void top_roller_behavior(bool jammed, bool sorting);
+
+  void back_score_roller_behavior(bool jammed, bool sorting);
 
   bool is_color_sorting();
 
@@ -84,6 +90,7 @@ public:
   vex::motor front_roller;
   vex::motor back_roller;
   vex::motor agitator_roller;
+  vex::motor back_score_roller;
   vex::optical lower_intake_sensor;
   vex::optical middle_intake_sensor;
   vex::digital_out lightboard;

@@ -22,7 +22,6 @@ vex::motor left1(PORT3, vex::gearSetting::ratio6_1, true);
 vex::motor left2(PORT4, vex::gearSetting::ratio6_1, true);
 vex::motor left3(PORT5, vex::gearSetting::ratio6_1, true);
 vex::motor left4(PORT19, vex::gearSetting::ratio6_1, true);
-
 vex::motor_group left_motors(left1, left2, left3, left4);
 
 vex::motor right1(PORT6, vex::gearSetting::ratio6_1, false);
@@ -33,18 +32,20 @@ vex::motor_group right_motors(right1, right2, right3, right4);
 
 vex::motor frontroller(PORT9, vex::gearSetting::ratio6_1, false);
 vex::motor backroller(PORT1, vex::gearSetting::ratio6_1, false);
-vex::motor toproller(PORT15, vex::gearSetting::ratio6_1, false);
+vex::motor toproller(PORT16, vex::gearSetting::ratio6_1, false);
 vex::motor agitatorroller(PORT17, vex::gearSetting::ratio6_1, false);
+vex::motor backscoreroller(PORT11, vex::gearSetting::ratio6_1, false);
 
 vex::digital_out zlight_board{Brain.ThreeWirePort.A};
 vex::digital_out match_loader{Brain.ThreeWirePort.B};
-vex::digital_out odompod_solonoid{Brain.ThreeWirePort.C};
+vex::digital_out right_wing_solonoid{Brain.ThreeWirePort.D};
+vex::digital_out left_wing_solonoid{Brain.ThreeWirePort.C};
+vex::digital_out right_stick_solonoid{Brain.ThreeWirePort.E};
 
 vex::inertial imu(PORT14);
-vex::rotation odompod(PORT18, true);
+vex::rotation odompod(PORT18, true); // Odompod has been removed from port
 
 vex::optical lower_intake_sensor(PORT2);
-
 vex::optical middle_intake_sensor(PORT13);
 
 // lidar at 16
@@ -98,7 +99,7 @@ robot_specs_t robot_config = {
 // OdometryOneWheel odom(&odompod, robot_config, Translation2d(-1.5, 1.4), &imu);
 OdometryTank odom(left_motors, right_motors, robot_config, &imu);
 TankDrive drive_sys(left_motors, right_motors, robot_config, &odom); //define how robot moves
-IntakeSys intake_sys(toproller, frontroller, backroller, agitatorroller, lower_intake_sensor, middle_intake_sensor, zlight_board, match_loader);
+IntakeSys intake_sys(toproller, frontroller, backroller, agitatorroller, backscoreroller, lower_intake_sensor, middle_intake_sensor, zlight_board, match_loader);
 
 AutoCommand *MatchLoaderCmd(bool sol_on) {
   return new FunctionCommand([sol_on]() {
