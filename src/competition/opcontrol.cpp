@@ -22,16 +22,18 @@ void opcontrol() {
     intake_sys.intake();
   });
   con.ButtonR2.pressed([](){
-    intake_sys.outbottom();
+    intake_sys.outbottom(7);
   });
   con.ButtonL1.pressed([](){
-    intake_sys.outmiddle();
+    intake_sys.outmiddle(8);
   });
-
   con.ButtonL2.pressed([](){
     intake_sys.outtop();
   });
 
+  con.ButtonLeft.pressed([](){
+    intake_sys.outbottom();
+  });
   con.ButtonDown.pressed([](){
     right_wing_solonoid.set(true);
     left_wing_solonoid.set(true);
@@ -43,6 +45,7 @@ void opcontrol() {
   con.ButtonRight.pressed([](){
     intake_sys.outback();
   });
+
   con.ButtonX.pressed([](){
     right_stick_solonoid.set(right_stick_out = !right_stick_out);
   });
@@ -56,7 +59,7 @@ void opcontrol() {
   while(true){
     printf("X: %.2f, Y: %.2f, Rot: %.2f\n", odom.get_position().x(), odom.get_position().y(), odom.get_position().rotation().degrees());
     if(!con.ButtonR1.pressing() && !con.ButtonR2.pressing() &&
-      !con.ButtonL1.pressing() && !con.ButtonL2.pressing() && !con.ButtonRight.pressing()){
+      !con.ButtonL1.pressing() && !con.ButtonL2.pressing() && !con.ButtonRight.pressing() && !con.ButtonLeft.pressing()){
       intake_sys.intake_stop();
     }
 
