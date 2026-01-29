@@ -47,6 +47,7 @@ vex::rotation odompod(PORT18, true); // Odompod has been removed from port
 
 vex::optical lower_intake_sensor(PORT2);
 vex::optical middle_intake_sensor(PORT13);
+vex::optical top_intake_sensor(PORT12);
 
 // lidar at 16
 

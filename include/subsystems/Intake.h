@@ -51,15 +51,9 @@ public:
 
   void remove_this_color(BlockColor color_to_remove);
 
-  void agitator_roller_behavior(bool sorting);
+  void run_state_machine(bool sorting);
 
-  void front_roller_behavior(bool jammed, bool sorting);
-
-  void back_roller_behavior(bool jammed, bool sorting);
-
-  void top_roller_behavior(bool jammed, bool sorting);
-
-  void back_score_roller_behavior(bool jammed, bool sorting);
+  void spin_motor(vex::motor &motor, double volts, bool jammed);
 
   bool is_color_sorting();
 
