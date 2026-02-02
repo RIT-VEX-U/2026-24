@@ -14,6 +14,7 @@
 bool enable_drive = true;
 
 bool right_stick_out = false;
+bool sunroof_down = false;
 
 void opcontrol() {
   intake_sys.auto_fix_jamming(false);
@@ -50,7 +51,7 @@ void opcontrol() {
     right_stick_solonoid.set(right_stick_out = !right_stick_out);
   });
   con.ButtonB.pressed([](){
-    // Hood (toggle)
+    sunroof_solonoid.set(sunroof_down = !sunroof_down);
   });
   con.ButtonY.pressed([](){
     intake_sys.match_load(!intake_sys.is_match_loading());

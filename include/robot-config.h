@@ -30,6 +30,7 @@ extern IntakeSys intake_sys;
 extern vex::digital_out right_wing_solonoid;
 extern vex::digital_out left_wing_solonoid;
 extern vex::digital_out right_stick_solonoid;
+extern vex::digital_out sunroof_solonoid;
 
 // ================ SUBSYSTEMS ================
 
