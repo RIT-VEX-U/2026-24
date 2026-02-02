@@ -41,6 +41,7 @@ vex::digital_out match_loader{Brain.ThreeWirePort.B};
 vex::digital_out right_wing_solonoid{Brain.ThreeWirePort.D};
 vex::digital_out left_wing_solonoid{Brain.ThreeWirePort.C};
 vex::digital_out right_stick_solonoid{Brain.ThreeWirePort.E};
+vex::digital_out sunroof_solonoid{Brain.ThreeWirePort.F};
 
 vex::inertial imu(PORT14);
 vex::rotation odompod(PORT18, true); // Odompod has been removed from port
