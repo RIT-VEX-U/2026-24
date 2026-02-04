@@ -56,6 +56,16 @@ void opcontrol() {
   con.ButtonY.pressed([](){
     intake_sys.match_load(!intake_sys.is_match_loading());
   });
+  con.ButtonA.pressed([](){
+    if(intake_sys.get_intake_state() == IntakeSys::AUTOLOAD) {
+      intake_sys.lock_state(false);
+      intake_sys.intake_stop();
+    }
+    else {
+      intake_sys.autoload();
+      intake_sys.lock_state();
+    }
+  });
 
   while(true){
     printf("X: %.2f, Y: %.2f, Rot: %.2f\n", odom.get_position().x(), odom.get_position().y(), odom.get_position().rotation().degrees());

@@ -10,37 +10,36 @@
 // ==================== Constructor ====================
 
 IntakeSys::IntakeSys(
-  vex::motor top_roller,
-  vex::motor front_roller,
-  vex::motor back_roller,
-  vex::motor agitator_roller,
-  vex::motor back_score_roller,
-  vex::optical lower_intake_sensor,
-  vex::optical middle_intake_sensor,
-  vex::digital_out lightboard,
-  vex::digital_out matchloader_sol
-) : top_roller(top_roller),
-  front_roller(front_roller),
-  back_roller(back_roller),
-  agitator_roller(agitator_roller),
-  back_score_roller(back_score_roller),
-  lower_intake_sensor(lower_intake_sensor),
-  middle_intake_sensor(middle_intake_sensor),
-  lightboard(lightboard),
-  matchloader_sol(matchloader_sol),
-  intake_state(STOPPED),
-  intake_volts(12) {
+  vex::motor top_roller, vex::motor front_roller, vex::motor back_roller,
+  vex::motor agitator_roller, vex::motor back_score_roller,
+  vex::optical lower_intake_sensor, vex::optical middle_intake_sensor,
+  vex::digital_out lightboard, vex::digital_out matchloader_sol
+) : top_roller(top_roller), front_roller(front_roller), back_roller(back_roller),
+    agitator_roller(agitator_roller), back_score_roller(back_score_roller),
+    lower_intake_sensor(lower_intake_sensor), middle_intake_sensor(middle_intake_sensor),
+    lightboard(lightboard), matchloader_sol(matchloader_sol), intake_state(STOPPED), intake_volts(12)
+{
   task = vex::task(thread_fn, this);
 }
 
 // ==================== Intake States ====================
 
-void IntakeSys::intake(double volts)    { intake_volts = volts; intake_state = IN;        }
-void IntakeSys::outbottom(double volts) { intake_volts = volts; intake_state = OUTBOTTOM; }
-void IntakeSys::outmiddle(double volts) { intake_volts = volts; intake_state = OUTMIDDLE; }
-void IntakeSys::outtop(double volts)    { intake_volts = volts; intake_state = OUTTOP;    }
-void IntakeSys::outback(double volts)   { intake_volts = volts; intake_state = OUTBACK;   }
-void IntakeSys::intake_stop()           { intake_state = STOPPED; }
+void IntakeSys::intake(double volts) {
+  if(state_unlocked) { intake_volts = volts; intake_state = IN; } }
+void IntakeSys::outbottom(double volts) { 
+  if(state_unlocked) { intake_volts = volts; intake_state = OUTBOTTOM; } }
+void IntakeSys::outmiddle(double volts) {
+  if(state_unlocked) { intake_volts = volts; intake_state = OUTMIDDLE; } }
+void IntakeSys::outtop(double volts) {
+  if(state_unlocked) { intake_volts = volts; intake_state = OUTTOP; } }
+void IntakeSys::outback(double volts) {
+  if(state_unlocked) { intake_volts = volts; intake_state = OUTBACK; } }
+void IntakeSys::autoload()    { if(state_unlocked) intake_state = AUTOLOAD; }
+void IntakeSys::intake_stop() { if(state_unlocked) intake_state = STOPPED;  }
+
+void IntakeSys::lock_state(bool lock) {
+  state_unlocked = !lock;
+}
 
 // ==================== Color Sorting ====================
 
@@ -144,6 +143,14 @@ void IntakeSys::run_state_machine(bool sorting) {
       agitator_roller.spin(vex::forward, -v, vex::volt);
       spin_motor(back_score_roller, -v, back_score_jam);
       break;
+
+    case AUTOLOAD:
+      /*front_roller.stop();
+      top_roller.stop();
+      back_roller.stop();
+      agitator_roller.stop();
+      spin_motor(back_score_roller, -v, back_score_jam);*/
+      break;
   }
 }
 
@@ -172,6 +179,7 @@ AutoCommand *IntakeSys::OutMiddleCmd(double volts) { return new FunctionCommand(
 AutoCommand *IntakeSys::OutTopCmd(double volts)    { return new FunctionCommand([this, volts]() { outtop(volts);    return true; }); }
 AutoCommand *IntakeSys::OutBackCmd(double volts)   { return new FunctionCommand([this, volts]() { outback(volts);   return true; }); }
 AutoCommand *IntakeSys::IntakeStopCmd()            { return new FunctionCommand([this]()        { intake_stop();    return true; }); }
+AutoCommand *IntakeSys::AutoLoadCmd()              { return new FunctionCommand([this]()        { autoload();       return true; }); }
 
 AutoCommand *IntakeSys::ColorSortCmd(bool enabled)         { return new FunctionCommand([this, enabled]()       { do_color_sort = enabled;   return true; }); }
 AutoCommand *IntakeSys::MatchLoaderCmd(bool do_match_load) { return new FunctionCommand([this, do_match_load]() { match_load(do_match_load); return true; }); }
