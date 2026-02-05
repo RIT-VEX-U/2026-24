@@ -9,7 +9,12 @@
 #include <cstdio>
 #include <vex_global.h>
 
-#define DEADBAND 0.0
+#define DEADBAND 0.0  // Deadband for joystick inputs
+#define TESTCODE      // Comment for "competition-ready" (Joe-friendly) drive code.
+                      // Uncomment for testing/debug/experimental/tuning/etc code.
+#ifdef TESTCODE
+void PID_Tuning();
+#endif
 
 bool enable_drive = true;
 
@@ -46,6 +51,13 @@ void opcontrol() {
   con.ButtonRight.pressed([](){
     intake_sys.outback();
   });
+  #ifdef TESTCODE
+  con.ButtonUp.pressed([](){
+    enable_drive = false;
+    PID_Tuning();
+    enable_drive = true;
+  });
+  #endif
 
   con.ButtonX.pressed([](){
     right_stick_solonoid.set(right_stick_out = !right_stick_out);
@@ -86,10 +98,33 @@ void opcontrol() {
         right = 0;
       }
       if(enable_drive){
+        #ifdef TESTCODE
+        drive_sys.drive_arcade(left, (double)con.Axis1.position() / 100);
+        #else
         drive_sys.drive_tank(left,right);
+        #endif
       }
     }
     
   vexDelay(10);
   }
+}
+
+void PID_Tuning() {
+  CommandController cc{
+    new Async(new FunctionCommand([]() {
+      while (true) {
+        printf(
+          "ODO X: %f ODO Y: %f, ODO ROT: %f\n", odom.get_position().x(),
+          odom.get_position().y(), odom.get_position().rotation().degrees()
+        );
+        vexDelay(100);
+      }
+      return true;
+    })),
+    drive_sys.DriveForwardCmd(24, vex::forward, 1.0)->withTimeout(2),
+    new DelayCommand(200),
+    drive_sys.TurnDegreesCmd(90, 1)
+  };
+  cc.run();
 }
