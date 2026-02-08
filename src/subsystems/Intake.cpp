@@ -83,10 +83,10 @@ void IntakeSys::spin_motor(vex::motor &motor, double volts, bool jammed) {
 
 void IntakeSys::run_state_machine(bool sorting) {
   double v = intake_volts;
-  bool front_jam = motor_jammed(front_roller);
-  bool top_jam = motor_jammed(top_roller);
-  bool back_jam = motor_jammed(back_roller);
-  bool back_score_jam = motor_jammed(back_score_roller);
+  bool front_jammed = motor_jammed(front_roller);
+  bool top_jammed = motor_jammed(top_roller);
+  bool back_jammed = motor_jammed(back_roller);
+  bool back_score_jammed = motor_jammed(back_score_roller);
 
   switch (intake_state) {
     case STOPPED:
@@ -98,51 +98,51 @@ void IntakeSys::run_state_machine(bool sorting) {
       break;
 
     case IN:
-      spin_motor(front_roller, v, front_jam);
+      spin_motor(front_roller, v, front_jammed);
       if (sorting) {
-        spin_motor(top_roller, v, top_jam);
+        spin_motor(top_roller, v, top_jammed);
       } else {
         top_roller.stop();
       }
-      spin_motor(back_roller, -v, back_jam);
+      spin_motor(back_roller, -v, back_jammed);
       spin_motor(agitator_roller, v, false); //agitator_roller.spin(vex::forward, v, vex::volt);
       back_score_roller.stop();
       break;
 
     case OUTBOTTOM:
-      spin_motor(front_roller, -v, front_jam);
+      spin_motor(front_roller, -v, front_jammed);
       if (sorting) {
-        spin_motor(top_roller, v, top_jam);
+        spin_motor(top_roller, v, top_jammed);
       } else {
         top_roller.stop();
       }
-      spin_motor(back_roller, v, back_jam);
+      spin_motor(back_roller, v, back_jammed);
       spin_motor(agitator_roller, -v, false); //agitator_roller.spin(vex::forward, -v, vex::volt);
       back_score_roller.stop();
       break;
 
     case OUTMIDDLE:
-      spin_motor(front_roller, 8, front_jam);
-      spin_motor(top_roller, sorting ? -v : v, top_jam);
-      spin_motor(back_roller, v, back_jam);
+      spin_motor(front_roller, 8, front_jammed);
+      spin_motor(top_roller, sorting ? -v : v, top_jammed);
+      spin_motor(back_roller, v, back_jammed);
       spin_motor(agitator_roller, -v, false); //agitator_roller.spin(vex::forward, -v, vex::volt);
       back_score_roller.stop();
       break;
 
     case OUTTOP:
-      spin_motor(front_roller, v, front_jam);
-      spin_motor(top_roller, -v, top_jam);
-      spin_motor(back_roller, v, back_jam);
+      spin_motor(front_roller, v, front_jammed);
+      spin_motor(top_roller, -v, top_jammed);
+      spin_motor(back_roller, v, back_jammed);
       spin_motor(agitator_roller, -v, false); //agitator_roller.spin(vex::forward, -v, vex::volt);
-      spin_motor(back_score_roller, v, back_score_jam);
+      spin_motor(back_score_roller, v, back_score_jammed);
       break;
 
     case OUTBACK:
-      spin_motor(front_roller, v, front_jam);
-      spin_motor(top_roller, -v, top_jam);
-      spin_motor(back_roller, v, back_jam);
+      spin_motor(front_roller, v, front_jammed);
+      spin_motor(top_roller, -v, top_jammed);
+      spin_motor(back_roller, v, back_jammed);
       spin_motor(agitator_roller, -v, false); //agitator_roller.spin(vex::forward, -v, vex::volt);
-      spin_motor(back_score_roller, -v, back_score_jam);
+      spin_motor(back_score_roller, -v, back_score_jammed);
       break;
 
     case AUTOLOAD:
