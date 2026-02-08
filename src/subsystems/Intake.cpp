@@ -74,6 +74,7 @@ IntakeSys::BlockColor IntakeSys::seeing_color(vex::optical sensor) {
 // ==================== Motor Helper(s) ====================
 
 void IntakeSys::spin_motor(vex::motor &motor, double volts, bool jammed) {
+  if(motor.power() < 0.1) motor.stop();
   if (jammed) volts *= -1;
   motor.spin(vex::forward, volts, vex::volt);
 }
@@ -104,7 +105,7 @@ void IntakeSys::run_state_machine(bool sorting) {
         top_roller.stop();
       }
       spin_motor(back_roller, -v, back_jam);
-      agitator_roller.spin(vex::forward, v, vex::volt);
+      spin_motor(agitator_roller, v, false); //agitator_roller.spin(vex::forward, v, vex::volt);
       back_score_roller.stop();
       break;
 
@@ -116,7 +117,7 @@ void IntakeSys::run_state_machine(bool sorting) {
         top_roller.stop();
       }
       spin_motor(back_roller, v, back_jam);
-      agitator_roller.spin(vex::forward, -v, vex::volt);
+      spin_motor(agitator_roller, -v, false); //agitator_roller.spin(vex::forward, -v, vex::volt);
       back_score_roller.stop();
       break;
 
@@ -124,7 +125,7 @@ void IntakeSys::run_state_machine(bool sorting) {
       spin_motor(front_roller, 8, front_jam);
       spin_motor(top_roller, sorting ? -v : v, top_jam);
       spin_motor(back_roller, v, back_jam);
-      agitator_roller.spin(vex::forward, -v, vex::volt);
+      spin_motor(agitator_roller, -v, false); //agitator_roller.spin(vex::forward, -v, vex::volt);
       back_score_roller.stop();
       break;
 
@@ -132,7 +133,7 @@ void IntakeSys::run_state_machine(bool sorting) {
       spin_motor(front_roller, v, front_jam);
       spin_motor(top_roller, -v, top_jam);
       spin_motor(back_roller, v, back_jam);
-      agitator_roller.spin(vex::forward, -v, vex::volt);
+      spin_motor(agitator_roller, -v, false); //agitator_roller.spin(vex::forward, -v, vex::volt);
       spin_motor(back_score_roller, v, back_score_jam);
       break;
 
@@ -140,7 +141,7 @@ void IntakeSys::run_state_machine(bool sorting) {
       spin_motor(front_roller, v, front_jam);
       spin_motor(top_roller, -v, top_jam);
       spin_motor(back_roller, v, back_jam);
-      agitator_roller.spin(vex::forward, -v, vex::volt);
+      spin_motor(agitator_roller, -v, false); //agitator_roller.spin(vex::forward, -v, vex::volt);
       spin_motor(back_score_roller, -v, back_score_jam);
       break;
 
