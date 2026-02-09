@@ -82,12 +82,15 @@ void IntakeSys::spin_motor(vex::motor &motor, double volts, bool jammed) {
 // ==================== Motor Behavior ====================
 
 void IntakeSys::run_state_machine(bool sorting) {
+  static BlockColor autoload_prefer = BlockColor::NOTHING;
   double v = intake_volts;
   bool front_jammed = motor_jammed(front_roller);
   bool top_jammed = motor_jammed(top_roller);
   bool back_jammed = motor_jammed(back_roller);
   bool back_score_jammed = motor_jammed(back_score_roller);
 
+  if(intake_state != AUTOLOAD) {
+    autoload_prefer = BlockColor::NOTHING; lightboard.set(do_color_sort); }
   switch (intake_state) {
     case STOPPED:
       front_roller.stop();
@@ -146,11 +149,19 @@ void IntakeSys::run_state_machine(bool sorting) {
       break;
 
     case AUTOLOAD:
-      /*front_roller.stop();
-      top_roller.stop();
-      back_roller.stop();
-      agitator_roller.stop();
-      spin_motor(back_score_roller, -v, back_score_jam);*/
+      // Color-Independent Motors
+      lightboard.set(true);
+      spin_motor(front_roller, v, front_jammed);
+      spin_motor(agitator_roller, v, false);
+      spin_motor(back_score_roller, -v, back_score_jammed);
+      spin_motor(top_roller, -v, top_jammed);
+      
+      // Color-Dependent Motors
+      BlockColor currentBlock = seeing_color(lower_intake_sensor);
+      if(autoload_prefer == BlockColor::NOTHING)    autoload_prefer = currentBlock;
+      else if(currentBlock == autoload_prefer)      spin_motor(back_roller, -v, back_jammed);
+      else if(currentBlock != BlockColor::NOTHING)  spin_motor(back_roller, v, back_jammed);
+
       break;
   }
 }

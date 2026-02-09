@@ -87,7 +87,6 @@ private:
 
   bool do_color_sort = false;
   BlockColor color_to_remove = BLUE;
-  BlockColor autoload_keep = NOTHING;
 
 // ================= Motors and Sensors ==================
 

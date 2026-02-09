@@ -9,8 +9,10 @@
 #include <cstdio>
 #include <vex_global.h>
 
+//#define ARCADE        // Comment for Joe-friendly drive controls.
 #define DEADBAND 0.0  // Deadband for joystick inputs
-#define TESTCODE      // Comment for "competition-ready" (Joe-friendly) drive code.
+
+//#define TESTCODE      // Comment competition-ready drive code.
                       // Uncomment for testing/debug/experimental/tuning/etc code.
 #ifdef TESTCODE
 void PID_Tuning();
@@ -70,10 +72,14 @@ void opcontrol() {
   });
   con.ButtonA.pressed([](){
     if(intake_sys.get_intake_state() == IntakeSys::AUTOLOAD) {
+      sunroof_solonoid.set(sunroof_down = false);
+      intake_sys.match_load(false);
       intake_sys.lock_state(false);
-      intake_sys.intake_stop();
+      intake_sys.intake_stop(); // TODO: In-between state
     }
     else {
+      sunroof_solonoid.set(sunroof_down = true);
+      intake_sys.match_load(true);
       intake_sys.autoload();
       intake_sys.lock_state();
     }
@@ -90,7 +96,13 @@ void opcontrol() {
     double right;
     if(enable_drive) {
       left = (double)con.Axis3.position() / 100;
-      right = (double)con.Axis2.position() / 100;
+      right = 
+      #ifndef ARCADE
+        (double)con.Axis2.position() / 100;
+      #else
+        (double)con.Axis1.position() / 100;
+      #endif
+
       if(left < DEADBAND && left > -DEADBAND){
         left = 0;
       }
@@ -98,8 +110,8 @@ void opcontrol() {
         right = 0;
       }
       if(enable_drive){
-        #ifdef TESTCODE
-        drive_sys.drive_arcade(left, (double)con.Axis1.position() / 100);
+        #ifdef ARCADE
+        drive_sys.drive_arcade(left, right);
         #else
         drive_sys.drive_tank(left,right);
         #endif
@@ -110,6 +122,7 @@ void opcontrol() {
   }
 }
 
+#ifdef TESTCODE
 void PID_Tuning() {
   CommandController cc{
     new Async(new FunctionCommand([]() {
@@ -128,3 +141,4 @@ void PID_Tuning() {
   };
   cc.run();
 }
+#endif
