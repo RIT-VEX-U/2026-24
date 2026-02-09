@@ -19,9 +19,7 @@ void PID_Tuning();
 #endif
 
 bool enable_drive = true;
-
-bool right_stick_out = false;
-bool sunroof_down = false;
+bool sunroof_lock = false;
 
 void opcontrol() {
   intake_sys.auto_fix_jamming(false);
@@ -62,34 +60,45 @@ void opcontrol() {
   #endif
 
   con.ButtonX.pressed([](){
-    right_stick_solonoid.set(right_stick_out = !right_stick_out);
+    right_stick_solonoid.set(!right_stick_solonoid.value());
   });
   con.ButtonB.pressed([](){
-    sunroof_solonoid.set(sunroof_down = !sunroof_down);
+    if(!sunroof_lock) sunroof_solonoid.set(!sunroof_solonoid.value());
   });
   con.ButtonY.pressed([](){
     intake_sys.match_load(!intake_sys.is_match_loading());
   });
   con.ButtonA.pressed([](){
     if(intake_sys.get_intake_state() == IntakeSys::AUTOLOAD) {
-      sunroof_solonoid.set(sunroof_down = false);
-      intake_sys.match_load(false);
-      intake_sys.lock_state(false);
-      intake_sys.intake_stop(); // TODO: In-between state
+      intake_sys.match_load(false); // Raise matchloader
+      intake_sys.lock_state(false); // Unlock intake state
+      intake_sys.frontpurge();      // Purge
     }
     else {
-      sunroof_solonoid.set(sunroof_down = true);
-      intake_sys.match_load(true);
-      intake_sys.autoload();
-      intake_sys.lock_state();
+      sunroof_lock = true;          // Lock sunroof
+      sunroof_solonoid.set(true);   // Lower sunroof
+      intake_sys.match_load(true);  // Lower matchloader
+      intake_sys.autoload();        // Automatic Match Load
+      intake_sys.lock_state();      // Lock intake state
     }
   });
 
+  IntakeSys::IntakeState intake_state = intake_sys.get_intake_state();
   while(true){
+    IntakeSys::IntakeState prev_state = intake_state;
+    intake_state = intake_sys.get_intake_state();
+
     printf("X: %.2f, Y: %.2f, Rot: %.2f\n", odom.get_position().x(), odom.get_position().y(), odom.get_position().rotation().degrees());
+
     if(!con.ButtonR1.pressing() && !con.ButtonR2.pressing() &&
-      !con.ButtonL1.pressing() && !con.ButtonL2.pressing() && !con.ButtonRight.pressing() && !con.ButtonLeft.pressing()){
+      !con.ButtonL1.pressing() && !con.ButtonL2.pressing() && !con.ButtonRight.pressing() && !con.ButtonLeft.pressing() && intake_sys.get_intake_state() != IntakeSys::FRONTPURGE)
+    {
       intake_sys.intake_stop();
+    }
+
+    if(intake_state != IntakeSys::FRONTPURGE && prev_state == IntakeSys::FRONTPURGE) {
+      sunroof_lock = false;
+      sunroof_solonoid.set(false);
     }
 
     double left;

@@ -21,7 +21,8 @@ public:
     OUTMIDDLE,
     OUTBOTTOM,
     STOPPED,
-    AUTOLOAD
+    AUTOLOAD,
+    FRONTPURGE
   };
 
   enum BlockColor{
@@ -40,6 +41,7 @@ public:
   AutoCommand *OutTopCmd(double volts = 12);
   AutoCommand *OutBackCmd(double volts = 12);
   AutoCommand *AutoLoadCmd();
+  AutoCommand *FrontPurgeCmd();
   AutoCommand *IntakeStopCmd();
   AutoCommand *ColorSortCmd(bool do_color_sort);
   AutoCommand *MatchLoaderCmd(bool do_color_sort);
@@ -49,7 +51,8 @@ public:
   void outmiddle(double volts = 12);
   void outtop(double volts = 12);
   void outback(double volts = 12);
-  void autoload();
+  void autoload(double volts = 12);
+  void frontpurge(double volts = 12);
   void intake_stop();
 
   void lock_state(bool lock = true);

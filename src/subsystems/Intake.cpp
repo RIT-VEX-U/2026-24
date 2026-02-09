@@ -34,7 +34,10 @@ void IntakeSys::outtop(double volts) {
   if(state_unlocked) { intake_volts = volts; intake_state = OUTTOP; } }
 void IntakeSys::outback(double volts) {
   if(state_unlocked) { intake_volts = volts; intake_state = OUTBACK; } }
-void IntakeSys::autoload()    { if(state_unlocked) intake_state = AUTOLOAD; }
+void IntakeSys::autoload(double volts) {
+  if(state_unlocked) { intake_volts = volts; intake_state = AUTOLOAD; } }
+void IntakeSys::frontpurge(double volts) {
+  if(state_unlocked) { intake_volts = volts; intake_state = FRONTPURGE; } }
 void IntakeSys::intake_stop() { if(state_unlocked) intake_state = STOPPED;  }
 
 void IntakeSys::lock_state(bool lock) {
@@ -108,7 +111,7 @@ void IntakeSys::run_state_machine(bool sorting) {
         top_roller.stop();
       }
       spin_motor(back_roller, -v, back_jammed);
-      spin_motor(agitator_roller, v, false); //agitator_roller.spin(vex::forward, v, vex::volt);
+      spin_motor(agitator_roller, v, false);
       back_score_roller.stop();
       break;
 
@@ -120,7 +123,7 @@ void IntakeSys::run_state_machine(bool sorting) {
         top_roller.stop();
       }
       spin_motor(back_roller, v, back_jammed);
-      spin_motor(agitator_roller, -v, false); //agitator_roller.spin(vex::forward, -v, vex::volt);
+      spin_motor(agitator_roller, -v, false);
       back_score_roller.stop();
       break;
 
@@ -128,7 +131,7 @@ void IntakeSys::run_state_machine(bool sorting) {
       spin_motor(front_roller, 8, front_jammed);
       spin_motor(top_roller, sorting ? -v : v, top_jammed);
       spin_motor(back_roller, v, back_jammed);
-      spin_motor(agitator_roller, -v, false); //agitator_roller.spin(vex::forward, -v, vex::volt);
+      spin_motor(agitator_roller, -v, false);
       back_score_roller.stop();
       break;
 
@@ -136,7 +139,7 @@ void IntakeSys::run_state_machine(bool sorting) {
       spin_motor(front_roller, v, front_jammed);
       spin_motor(top_roller, -v, top_jammed);
       spin_motor(back_roller, v, back_jammed);
-      spin_motor(agitator_roller, -v, false); //agitator_roller.spin(vex::forward, -v, vex::volt);
+      spin_motor(agitator_roller, -v, false);
       spin_motor(back_score_roller, v, back_score_jammed);
       break;
 
@@ -144,16 +147,16 @@ void IntakeSys::run_state_machine(bool sorting) {
       spin_motor(front_roller, v, front_jammed);
       spin_motor(top_roller, -v, top_jammed);
       spin_motor(back_roller, v, back_jammed);
-      spin_motor(agitator_roller, -v, false); //agitator_roller.spin(vex::forward, -v, vex::volt);
+      spin_motor(agitator_roller, -v, false);
       spin_motor(back_score_roller, -v, back_score_jammed);
       break;
 
-    case AUTOLOAD:
+    case AUTOLOAD: {
       // Color-Independent Motors
       lightboard.set(true);
       spin_motor(front_roller, v, front_jammed);
       spin_motor(agitator_roller, v, false);
-      spin_motor(back_score_roller, -v, back_score_jammed);
+      spin_motor(back_score_roller, -8, back_score_jammed);
       spin_motor(top_roller, -v, top_jammed);
       
       // Color-Dependent Motors
@@ -161,7 +164,14 @@ void IntakeSys::run_state_machine(bool sorting) {
       if(autoload_prefer == BlockColor::NOTHING)    autoload_prefer = currentBlock;
       else if(currentBlock == autoload_prefer)      spin_motor(back_roller, -v, back_jammed);
       else if(currentBlock != BlockColor::NOTHING)  spin_motor(back_roller, v, back_jammed);
+      break; }
 
+    case FRONTPURGE:
+      spin_motor(front_roller, -v, front_jammed);
+      spin_motor(agitator_roller, v, false);
+      back_roller.stop();
+      spin_motor(top_roller, -v, top_jammed);
+      spin_motor(back_score_roller, v, back_score_jammed);
       break;
   }
 }
@@ -192,6 +202,7 @@ AutoCommand *IntakeSys::OutTopCmd(double volts)    { return new FunctionCommand(
 AutoCommand *IntakeSys::OutBackCmd(double volts)   { return new FunctionCommand([this, volts]() { outback(volts);   return true; }); }
 AutoCommand *IntakeSys::IntakeStopCmd()            { return new FunctionCommand([this]()        { intake_stop();    return true; }); }
 AutoCommand *IntakeSys::AutoLoadCmd()              { return new FunctionCommand([this]()        { autoload();       return true; }); }
+AutoCommand *IntakeSys::FrontPurgeCmd()            { return new FunctionCommand([this]()        { frontpurge();     return true; }); }
 
 AutoCommand *IntakeSys::ColorSortCmd(bool enabled)         { return new FunctionCommand([this, enabled]()       { do_color_sort = enabled;   return true; }); }
 AutoCommand *IntakeSys::MatchLoaderCmd(bool do_match_load) { return new FunctionCommand([this, do_match_load]() { match_load(do_match_load); return true; }); }
