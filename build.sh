@@ -11,6 +11,10 @@ QUIET=false
 NAME=""
 SLOT=""
 UPLOAD=false
+NETWORK_UPLOAD=false
+UPLOAD_ADDRESS=""
+RUN_PROGRAM=false
+STOP_PROGRAM=false
 
 # colors
 RED='\033[0;31m'
@@ -37,7 +41,10 @@ show_help() {
     echo "  -q, --quiet                   Suppress compiler warnings"
     echo "  -n, --name <string>           Set project name in vex_project_settings.json"
     echo "  -s, --slot <1-8>              Set project slot in vex_project_settings.json"
-    echo "  -u, --upload                  Upload the built binary to VEX brain"
+    echo "  -u, --upload                  Upload the built binary to VEX brain via USB"
+    echo "  -U, --network-upload <addr>   Upload the built binary over network (e.g., localhost:8080)"
+    echo "  --run [slot]                  Run program in specified slot (or use slot from settings)"
+    echo "  --stop [slot]                 Stop program in specified slot (or use slot from settings)"
     echo "  -h, --help                    Show this help"
     echo ""
     echo "Examples:"
@@ -50,8 +57,14 @@ show_help() {
     echo "  ./build.sh --name 'MyBot'     # Set project name and build"
     echo "  ./build.sh --slot 3           # Set project slot and build"
     echo "  ./build.sh -n 'MyBot' -s 2    # Set both name and slot, then build"
-    echo "  ./build.sh --upload           # Build and upload to VEX brain"
-    echo "  ./build.sh -s 3 --upload      # Build and upload to slot 3"
+    echo "  ./build.sh --upload           # Build and upload to VEX brain via USB"
+    echo "  ./build.sh -s 3 --upload      # Build and upload to slot 3 via USB"
+    echo "  ./build.sh -U localhost:8080  # Build and upload over network"
+    echo "  ./build.sh -s 3 -U 192.168.1.100:8080  # Build and upload to slot 3 over network"
+    echo "  ./build.sh --run              # Run program in slot from settings"
+    echo "  ./build.sh --run 3            # Run program in slot 3"
+    echo "  ./build.sh --stop             # Stop program in slot from settings"
+    echo "  ./build.sh --stop 3           # Stop program in slot 3"
     exit 0
 }
 
@@ -98,6 +111,35 @@ while [[ $# -gt 0 ]]; do
             UPLOAD=true
             shift
             ;;
+        -U|--network-upload)
+            NETWORK_UPLOAD=true
+            UPLOAD_ADDRESS="$2"
+            if [ -z "$UPLOAD_ADDRESS" ]; then
+                print_color $RED "Error: --network-upload requires an address (e.g., localhost:8080)"
+                exit 1
+            fi
+            shift 2
+            ;;
+        --run)
+            RUN_PROGRAM=true
+            # Check if next arg is a slot number
+            if [[ "$2" =~ ^[1-8]$ ]]; then
+                SLOT="$2"
+                shift 2
+            else
+                shift
+            fi
+            ;;
+        --stop)
+            STOP_PROGRAM=true
+            # Check if next arg is a slot number
+            if [[ "$2" =~ ^[1-8]$ ]]; then
+                SLOT="$2"
+                shift 2
+            else
+                shift
+            fi
+            ;;
         -h|--help)
             HELP=true
             shift
@@ -112,6 +154,24 @@ done
 
 if [ "$HELP" = true ]; then
     show_help
+fi
+
+# check for conflicting upload options
+if [ "$UPLOAD" = true ] && [ "$NETWORK_UPLOAD" = true ]; then
+    print_color $RED "Error: Cannot use both --upload and --network-upload"
+    exit 1
+fi
+
+# check for conflicting run/stop options
+if [ "$RUN_PROGRAM" = true ] && [ "$STOP_PROGRAM" = true ]; then
+    print_color $RED "Error: Cannot use both --run and --stop"
+    exit 1
+fi
+
+# check if run/stop without network upload address
+if ([ "$RUN_PROGRAM" = true ] || [ "$STOP_PROGRAM" = true ]) && [ -z "$UPLOAD_ADDRESS" ]; then
+    # Default to localhost:80 if no address specified
+    UPLOAD_ADDRESS="localhost:80"
 fi
 
 # get script directory (project root)
@@ -329,9 +389,9 @@ fi
 COMPLETION_TIME=$(date +"%H:%M:%S")
 print_color $GREEN "Build completed at $COMPLETION_TIME"
 
-# upload if requested
+# upload via USB if requested
 if [ "$UPLOAD" = true ]; then
-    print_color $YELLOW "Uploading to VEX brain..."
+    print_color $YELLOW "Uploading to VEX brain via USB..."
     
     BIN_FILE="$BUILD_DIR/$PROJECT_NAME.bin"
     if [ ! -f "$BIN_FILE" ]; then
@@ -400,3 +460,285 @@ if [ "$UPLOAD" = true ]; then
     
     print_color $GREEN "Upload successful!"
 fi
+
+# upload over network if requested
+if [ "$NETWORK_UPLOAD" = true ]; then
+    print_color $YELLOW "Uploading to VEX brain over network..."
+    
+    BIN_FILE="$BUILD_DIR/$PROJECT_NAME.bin"
+    if [ ! -f "$BIN_FILE" ]; then
+        print_color $RED "Error: Binary file not found: $BIN_FILE"
+        exit 1
+    fi
+    
+    # check if curl is available
+    if ! command -v curl >/dev/null 2>&1; then
+        print_color $RED "Error: curl is required for network upload but is not installed"
+        exit 1
+    fi
+    
+    # get upload slot number
+    UPLOAD_SLOT=1  # default to 1
+    if [ -n "$SLOT" ]; then
+        UPLOAD_SLOT="$SLOT"
+    elif [ -f "$VEX_PROJECT_SETTINGS_FILE" ]; then
+        if command -v jq >/dev/null 2>&1; then
+            VEX_SLOT=$(jq -r '.project.slot // empty' "$VEX_PROJECT_SETTINGS_FILE" 2>/dev/null)
+            if [ -n "$VEX_SLOT" ] && [ "$VEX_SLOT" != "null" ]; then
+                UPLOAD_SLOT="$VEX_SLOT"
+            fi
+        else
+            # try to parse without jq
+            VEX_SLOT=$(grep -o '"slot"[[:space:]]*:[[:space:]]*[0-9]*' "$VEX_PROJECT_SETTINGS_FILE" | head -1 | sed 's/.*"slot"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/')
+            if [ -n "$VEX_SLOT" ]; then
+                UPLOAD_SLOT="$VEX_SLOT"
+            else
+                print_color $YELLOW "Warning: Could not parse slot from vex_project_settings.json, using slot $UPLOAD_SLOT"
+            fi
+        fi
+    fi
+    
+    # get project description if available
+    PROJECT_DESCRIPTION=""
+    if [ -f "$VEX_PROJECT_SETTINGS_FILE" ]; then
+        if command -v jq >/dev/null 2>&1; then
+            PROJECT_DESCRIPTION=$(jq -r '.project.description // empty' "$VEX_PROJECT_SETTINGS_FILE" 2>/dev/null)
+        else
+            # try to parse without jq
+            PROJECT_DESCRIPTION=$(grep -o '"description"[[:space:]]*:[[:space:]]*"[^"]*"' "$VEX_PROJECT_SETTINGS_FILE" | head -1 | sed 's/.*"description"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
+        fi
+    fi
+    
+    if [ -z "$PROJECT_DESCRIPTION" ]; then
+        PROJECT_DESCRIPTION="Built with build.sh"
+    fi
+    
+    # create temp files for upload
+    TMP_JSON=$(mktemp /tmp/vex_upload.XXXXXX.json)
+    TMP_B64=$(mktemp /tmp/vex_upload.XXXXXX.b64)
+    TMP_RESPONSE=$(mktemp /tmp/vex_upload.XXXXXX.response)
+    trap 'rm -f "$TMP_JSON" "$TMP_B64" "$TMP_RESPONSE"' EXIT
+    
+    # convert binary to base64
+    print_color $YELLOW "Encoding binary to base64..."
+    if base64 --help 2>&1 | grep -q -- "-w"; then
+        # GNU coreutils base64 (Linux)
+        base64 -w0 "$BIN_FILE" > "$TMP_B64"
+    else
+        # BSD base64 (macOS)
+        base64 "$BIN_FILE" | tr -d '\n' > "$TMP_B64"
+    fi
+    
+    # construct the upload URL
+    if [[ "$UPLOAD_ADDRESS" =~ ^https?:// ]]; then
+        UPLOAD_URL="$UPLOAD_ADDRESS"
+    else
+        UPLOAD_URL="http://$UPLOAD_ADDRESS"
+    fi
+    
+    # ensure URL ends with /upload
+    if [[ ! "$UPLOAD_URL" =~ /upload$ ]]; then
+        UPLOAD_URL="${UPLOAD_URL%/}/upload"
+    fi
+    
+    print_color $YELLOW "Uploading $PROJECT_NAME.bin to slot $UPLOAD_SLOT at $UPLOAD_URL..."
+    
+    # escape JSON strings
+    ESC_NAME=$(printf '%s' "$PROJECT_NAME" | sed 's/"/\\"/g')
+    ESC_DESC=$(printf '%s' "$PROJECT_DESCRIPTION" | sed 's/"/\\"/g')
+    
+    # create JSON payload file
+    cat > "$TMP_JSON" <<EOF
+{
+  "slot": $UPLOAD_SLOT,
+  "name": "$ESC_NAME",
+  "description": "$ESC_DESC",
+  "compress": true,
+  "after_upload": "show_run_screen",
+  "monolith_b64": "$(cat "$TMP_B64")"
+}
+EOF
+    
+    # upload via HTTP POST using the JSON file
+    HTTP_CODE=$(curl -sS \
+        -o "$TMP_RESPONSE" \
+        -w "%{http_code}" \
+        -X POST \
+        -H "Content-Type: application/json" \
+        --data-binary @"$TMP_JSON" \
+        "$UPLOAD_URL")
+    
+    RESPONSE_BODY=$(cat "$TMP_RESPONSE")
+    
+    if [ "$HTTP_CODE" = "200" ]; then
+        print_color $GREEN "Upload successful!"
+        if [ -n "$RESPONSE_BODY" ]; then
+            print_color $GREEN "Server response: $RESPONSE_BODY"
+        fi
+    else
+        print_color $RED "Upload failed with HTTP code: $HTTP_CODE"
+        if [ -n "$RESPONSE_BODY" ]; then
+            print_color $RED "Server response: $RESPONSE_BODY"
+        fi
+        exit 1
+    fi
+fi
+
+# run program if requested
+if [ "$RUN_PROGRAM" = true ]; then
+    print_color $YELLOW "Running program on VEX brain..."
+    
+    # check if curl is available
+    if ! command -v curl >/dev/null 2>&1; then
+        print_color $RED "Error: curl is required for running programs but is not installed"
+        exit 1
+    fi
+    
+    # get slot number
+    RUN_SLOT=1  # default to 1
+    if [ -n "$SLOT" ]; then
+        RUN_SLOT="$SLOT"
+    elif [ -f "$VEX_PROJECT_SETTINGS_FILE" ]; then
+        if command -v jq >/dev/null 2>&1; then
+            VEX_SLOT=$(jq -r '.project.slot // empty' "$VEX_PROJECT_SETTINGS_FILE" 2>/dev/null)
+            if [ -n "$VEX_SLOT" ] && [ "$VEX_SLOT" != "null" ]; then
+                RUN_SLOT="$VEX_SLOT"
+            fi
+        else
+            VEX_SLOT=$(grep -o '"slot"[[:space:]]*:[[:space:]]*[0-9]*' "$VEX_PROJECT_SETTINGS_FILE" | head -1 | sed 's/.*"slot"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/')
+            if [ -n "$VEX_SLOT" ]; then
+                RUN_SLOT="$VEX_SLOT"
+            fi
+        fi
+    fi
+    
+    # construct the run URL
+    if [[ "$UPLOAD_ADDRESS" =~ ^https?:// ]]; then
+        RUN_URL="$UPLOAD_ADDRESS"
+    else
+        RUN_URL="http://$UPLOAD_ADDRESS"
+    fi
+    
+    # ensure URL ends with /run
+    if [[ ! "$RUN_URL" =~ /run$ ]]; then
+        RUN_URL="${RUN_URL%/}/run"
+    fi
+    
+    print_color $YELLOW "Running program in slot $RUN_SLOT at $RUN_URL..."
+    
+    # create temp files
+    TMP_RUN_JSON=$(mktemp /tmp/vex_run.XXXXXX.json)
+    TMP_RUN_RESPONSE=$(mktemp /tmp/vex_run.XXXXXX.response)
+    trap 'rm -f "$TMP_RUN_JSON" "$TMP_RUN_RESPONSE"' EXIT
+    
+    # create JSON payload
+    cat > "$TMP_RUN_JSON" <<EOF
+{
+  "slot": $RUN_SLOT
+}
+EOF
+    
+    # run via HTTP POST
+    HTTP_CODE=$(curl -sS \
+        -o "$TMP_RUN_RESPONSE" \
+        -w "%{http_code}" \
+        -X POST \
+        -H "Content-Type: application/json" \
+        --data-binary @"$TMP_RUN_JSON" \
+        "$RUN_URL")
+    
+    RESPONSE_BODY=$(cat "$TMP_RUN_RESPONSE")
+    
+    if [ "$HTTP_CODE" = "200" ]; then
+        print_color $GREEN "Program started successfully!"
+        if [ -n "$RESPONSE_BODY" ]; then
+            print_color $GREEN "Server response: $RESPONSE_BODY"
+        fi
+    else
+        print_color $RED "Run failed with HTTP code: $HTTP_CODE"
+        if [ -n "$RESPONSE_BODY" ]; then
+            print_color $RED "Server response: $RESPONSE_BODY"
+        fi
+        exit 1
+    fi
+fi
+
+# stop program if requested
+if [ "$STOP_PROGRAM" = true ]; then
+    print_color $YELLOW "Stopping program on VEX brain..."
+    
+    # check if curl is available
+    if ! command -v curl >/dev/null 2>&1; then
+        print_color $RED "Error: curl is required for stopping programs but is not installed"
+        exit 1
+    fi
+    
+    # get slot number
+    STOP_SLOT=1  # default to 1
+    if [ -n "$SLOT" ]; then
+        STOP_SLOT="$SLOT"
+    elif [ -f "$VEX_PROJECT_SETTINGS_FILE" ]; then
+        if command -v jq >/dev/null 2>&1; then
+            VEX_SLOT=$(jq -r '.project.slot // empty' "$VEX_PROJECT_SETTINGS_FILE" 2>/dev/null)
+            if [ -n "$VEX_SLOT" ] && [ "$VEX_SLOT" != "null" ]; then
+                STOP_SLOT="$VEX_SLOT"
+            fi
+        else
+            VEX_SLOT=$(grep -o '"slot"[[:space:]]*:[[:space:]]*[0-9]*' "$VEX_PROJECT_SETTINGS_FILE" | head -1 | sed 's/.*"slot"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/')
+            if [ -n "$VEX_SLOT" ]; then
+                STOP_SLOT="$VEX_SLOT"
+            fi
+        fi
+    fi
+    
+    # construct the stop URL
+    if [[ "$UPLOAD_ADDRESS" =~ ^https?:// ]]; then
+        STOP_URL="$UPLOAD_ADDRESS"
+    else
+        STOP_URL="http://$UPLOAD_ADDRESS"
+    fi
+    
+    # ensure URL ends with /stop
+    if [[ ! "$STOP_URL" =~ /stop$ ]]; then
+        STOP_URL="${STOP_URL%/}/stop"
+    fi
+    
+    print_color $YELLOW "Stopping program in slot $STOP_SLOT at $STOP_URL..."
+    
+    # create temp files
+    TMP_STOP_JSON=$(mktemp /tmp/vex_stop.XXXXXX.json)
+    TMP_STOP_RESPONSE=$(mktemp /tmp/vex_stop.XXXXXX.response)
+    trap 'rm -f "$TMP_STOP_JSON" "$TMP_STOP_RESPONSE"' EXIT
+    
+    # create JSON payload
+    cat > "$TMP_STOP_JSON" <<EOF
+{
+  "slot": $STOP_SLOT
+}
+EOF
+    
+    # stop via HTTP POST
+    HTTP_CODE=$(curl -sS \
+        -o "$TMP_STOP_RESPONSE" \
+        -w "%{http_code}" \
+        -X POST \
+        -H "Content-Type: application/json" \
+        --data-binary @"$TMP_STOP_JSON" \
+        "$STOP_URL")
+    
+    RESPONSE_BODY=$(cat "$TMP_STOP_RESPONSE")
+    
+    if [ "$HTTP_CODE" = "200" ]; then
+        print_color $GREEN "Program stopped successfully!"
+        if [ -n "$RESPONSE_BODY" ]; then
+            print_color $GREEN "Server response: $RESPONSE_BODY"
+        fi
+    else
+        print_color $RED "Stop failed with HTTP code: $HTTP_CODE"
+        if [ -n "$RESPONSE_BODY" ]; then
+            print_color $RED "Server response: $RESPONSE_BODY"
+        fi
+        exit 1
+    fi
+fi
+

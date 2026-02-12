@@ -51,6 +51,20 @@ void opcontrol() {
   con.ButtonRight.pressed([](){
     intake_sys.outback();
   });
+  con.ButtonUp.pressed([](){
+      enable_drive = false;
+      vexDelay(500);
+
+      imu.calibrate();
+      while (imu.isCalibrating()) {
+        vexDelay(10);
+      }
+      lidar.set_pose(Pose2d(lidar.get_pose().x(), lidar.get_pose().y(), from_degrees(0)));
+      lidar.BEAM_TOLERANCE = 999;
+      vexDelay(3000);
+      lidar.BEAM_TOLERANCE = 20;
+      enable_drive = true;
+      });
   #ifdef TESTCODE
   con.ButtonUp.pressed([](){
     enable_drive = false;

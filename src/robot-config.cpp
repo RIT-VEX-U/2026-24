@@ -1,4 +1,5 @@
 #include "robot-config.h"
+#include "core/subsystems/odometry/odometry_lidar_wrapper.h"
 #include "core/subsystems/screen.h"
 #include "core/utils/command_structure/auto_command.h"
 #include "core/utils/controls/feedforward.h"
@@ -6,17 +7,20 @@
 #include "core/utils/math/geometry/rotation2d.h"
 #include "core/utils/controls/pidff.h"
 #include <cstdio>
+#include <v5_api.h>
 #include <vex_optical.h>
 #include <vex_rotation.h>
 #include <vex_triport.h>
 #include <vex_units.h>
 #include "core/device/wrapper_device.hpp"
 #include "core/device/vdb/registry-controller.hpp"
+#include "subsystems/Lidar.h"
 //VEX
 vex::controller con;
 vex::brain Brain;
 
 //MOTORS
+bool DRIVE_FINISHED_FLAG = false;
 
 vex::motor left1(PORT3, vex::gearSetting::ratio6_1, true);
 vex::motor left2(PORT4, vex::gearSetting::ratio6_1, true);
@@ -44,17 +48,17 @@ vex::digital_out right_stick_solonoid{Brain.ThreeWirePort.E};
 vex::digital_out sunroof_solonoid{Brain.ThreeWirePort.F};
 
 vex::inertial imu(PORT14);
-vex::rotation odompod(PORT18, true); // Odompod has been removed from port
 
 vex::optical lower_intake_sensor(PORT2);
 vex::optical middle_intake_sensor(PORT13);
-vex::optical top_intake_sensor(PORT12);
+
+
 
 // lidar at 16
 
 PID::pid_config_t drive_pid_cfg{
-   .p = 0.09615,
-   .d = 0.007,
+   .p = 0.03,
+   .d = 0.004,
    .deadband = 1.5,
    .on_target_time = 0.1,
 };
@@ -78,15 +82,15 @@ MotionController drive_motion(drive_motion_cfg);
 PID::pid_config_t turn_pid_cfg{
   .p = 0.025,
   .i = 0.0,
-  .d = 0.001603,
+  .d = 0.004,
   .deadband = 3,
   .on_target_time = 0.1,
   .error_method = PID::ERROR_TYPE::LINEAR,
 };
 PID turn_pid(turn_pid_cfg);
 
-robot_specs_t robot_config = {
-  .robot_radius = 10,
+robot_specs_t config = {
+  .robot_radius = 15,
   .odom_wheel_diam = 2.29,
   .odom_gear_ratio = 1,
   .dist_between_wheels = 12.4,
@@ -96,9 +100,11 @@ robot_specs_t robot_config = {
   .correction_pid = turn_pid_cfg,
 };
 
-// OdometryOneWheel odom(&odompod, robot_config, Translation2d(-1.5, 1.4), &imu);
-OdometryTank odom(left_motors, right_motors, robot_config, &imu);
-TankDrive drive_sys(left_motors, right_motors, robot_config, &odom); //define how robot moves
+LidarReceiver lidar(vex::PORT15, 921600);
+
+OdometryLidarWrapper odom(&lidar);
+OdometryTank odomtank(left_motors, right_motors, config, &imu);
+TankDrive drive_sys(left_motors, right_motors, config, &odom); //define how robot moves
 IntakeSys intake_sys(toproller, frontroller, backroller, agitatorroller, backscoreroller, lower_intake_sensor, middle_intake_sensor, zlight_board, match_loader);
 
 AutoCommand *MatchLoaderCmd(bool sol_on) {
@@ -108,11 +114,26 @@ AutoCommand *MatchLoaderCmd(bool sol_on) {
   });
 }
 
+uint64_t init_us;
+struct pose_timestamp {
+  uint64_t timestamp;
+  float x;
+  float y;
+  float deg;
+};
+
+SerialLogger logger(vex::PORT12);
+
 void robot_init() {
+ while (!logger.is_connected()) {
+   logger.update();
+ }
+
  imu.calibrate();
  while(imu.isCalibrating()){
     vexDelay(10);
  }
+
   std::vector<screen::Page *> pages = {
     new screen::StatsPage({
       {"left1", left1},
@@ -131,4 +152,27 @@ void robot_init() {
   screen::start_screen(Brain.Screen, pages);
   odom.set_position({20, 88, from_degrees(90)});
   printf("started\n");
+
+  init_us = vexSystemHighResTimeGet();
+  
+  lidar.start();
+  lidar.reset_ukf({48, 96, from_degrees(0)});
+  logger.define_and_send_schema(0x01, "time:u64, x:f32, y:f32, t:f32");
+  while (true) {
+    // lidar.resetUKF({48, 96, 180});
+    Pose2d pose = drive_sys.get_position();
+    uint64_t timestamp = vexSystemHighResTimeGet() - init_us;
+    float x((float)pose.x());
+    float y((float)pose.y());
+    float t((float)pose.rotation().wrapped_degrees_360());
+    logger.build(0x01)
+       .add(timestamp)
+       .add(x)
+       .add(y)
+       .add(t)
+       .send();
+    // printf("loop\n");
+    vexDelay(10);
+  }
 }
+
