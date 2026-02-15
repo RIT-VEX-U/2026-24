@@ -15,7 +15,11 @@ param(
     [ValidateRange(1, 8)]
     [int]$Slot,
     [Alias("u")]
-    [switch]$Upload
+    [switch]$Upload,
+    [Alias("U")]
+    [string]$NetworkUpload,
+    [int]$Run = -1,
+    [int]$Stop = -1
 )
 
 function Write-ColorOutput {
@@ -35,7 +39,10 @@ function Show-Help {
     Write-Host "  -q, -Quiet                    Suppress compiler warnings"
     Write-Host "  -n, -Name <string>            Set project name in vex_project_settings.json"
     Write-Host "  -s, -Slot <1-8>               Set project slot in vex_project_settings.json"
-    Write-Host "  -u, -Upload                   Upload the built binary to VEX brain"
+    Write-Host "  -u, -Upload                   Upload the built binary to VEX brain via USB"
+    Write-Host "  -U, -NetworkUpload <addr>     Upload the built binary over network (e.g., localhost:8080)"
+    Write-Host "  -Run [slot]                   Run program in specified slot (or use slot from settings)"
+    Write-Host "  -Stop [slot]                  Stop program in specified slot (or use slot from settings)"
     Write-Host "  -h, -Help                     Show this help"
     Write-Host ""
     Write-Host "Examples:"
@@ -48,13 +55,37 @@ function Show-Help {
     Write-Host "  ./build.ps1 -Name 'MyBot'     # Set project name and build"
     Write-Host "  ./build.ps1 -Slot 3           # Set project slot and build"
     Write-Host "  ./build.ps1 -n 'MyBot' -s 2   # Set both name and slot, then build"
-    Write-Host "  ./build.ps1 -Upload           # Build and upload to VEX brain"
-    Write-Host "  ./build.ps1 -s 3 -Upload      # Build and upload to slot 3"
+    Write-Host "  ./build.ps1 -Upload           # Build and upload to VEX brain via USB"
+    Write-Host "  ./build.ps1 -s 3 -Upload      # Build and upload to slot 3 via USB"
+    Write-Host "  ./build.ps1 -NetworkUpload localhost:8080  # Build and upload over network"
+    Write-Host "  ./build.ps1 -s 3 -NetworkUpload 192.168.1.100:8080  # Build and upload to slot 3 over network"
+    Write-Host "  ./build.ps1 -Run              # Run program in slot from settings"
+    Write-Host "  ./build.ps1 -Run 3            # Run program in slot 3"
+    Write-Host "  ./build.ps1 -Stop             # Stop program in slot from settings"
+    Write-Host "  ./build.ps1 -Stop 3           # Stop program in slot 3"
     exit 0
 }
 
 if ($Help) {
     Show-Help
+}
+
+# check for conflicting upload options
+if ($Upload -and $NetworkUpload) {
+    Write-ColorOutput "Error: Cannot use both -Upload and -NetworkUpload" "Red"
+    exit 1
+}
+
+# check for conflicting run/stop options
+if ($Run -ge 0 -and $Stop -ge 0) {
+    Write-ColorOutput "Error: Cannot use both -Run and -Stop" "Red"
+    exit 1
+}
+
+# check if run/stop without network upload address
+if (($Run -ge 0 -or $Stop -ge 0) -and -not $NetworkUpload) {
+    # Default to localhost:80 if no address specified
+    $NetworkUpload = "localhost:80"
 }
 
 $ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -270,7 +301,7 @@ try {
 $CompletionTime = Get-Date -Format "HH:mm:ss"
 Write-ColorOutput "Build completed at $CompletionTime" "White"
 
-# upload if requested
+# upload via USB if requested
 if ($Upload) {
     $BinFile = Join-Path $BuildDir "$ProjectName.bin"
     if (-not (Test-Path $BinFile)) {
@@ -359,5 +390,315 @@ if ($Upload) {
     } catch {
         Write-ColorOutput "Upload failed: $_" "Red"
         exit 1
+    }
+}
+# upload over network if requested
+if ($NetworkUpload) {
+    Write-ColorOutput "Uploading to VEX brain over network..." "Yellow"
+    
+    $BinFile = Join-Path $BuildDir "$ProjectName.bin"
+    if (-not (Test-Path $BinFile)) {
+        Write-ColorOutput "Error: Binary file not found: $BinFile" "Red"
+        exit 1
+    }
+    
+    # check if curl is available
+    $CurlPath = $null
+    try {
+        $CurlPath = (Get-Command curl -ErrorAction Stop).Source
+    } catch {
+        Write-ColorOutput "Error: curl is required for network upload but is not installed" "Red"
+        exit 1
+    }
+    
+    # get upload slot number
+    $UploadSlot = 1  # default to 1
+    if ($Slot) {
+        $UploadSlot = $Slot
+    } elseif (Test-Path $VexProjectSettingsFile) {
+        try {
+            $VexSettings = Get-Content $VexProjectSettingsFile -Raw | ConvertFrom-Json
+            if ($VexSettings.project -and $VexSettings.project.slot) {
+                $UploadSlot = $VexSettings.project.slot
+            }
+        } catch {
+            Write-ColorOutput "Warning: Could not read slot from vex_project_settings.json, using slot $UploadSlot" "Yellow"
+        }
+    }
+    
+    # get project description if available
+    $ProjectDescription = ""
+    if (Test-Path $VexProjectSettingsFile) {
+        try {
+            $VexSettings = Get-Content $VexProjectSettingsFile -Raw | ConvertFrom-Json
+            if ($VexSettings.project -and $VexSettings.project.description) {
+                $ProjectDescription = $VexSettings.project.description
+            }
+        } catch {
+            # ignore errors
+        }
+    }
+    
+    if (-not $ProjectDescription) {
+        $ProjectDescription = "Built with build.ps1"
+    }
+    
+    # create temp files for upload
+    $TmpJson = Join-Path $env:TEMP "vex_upload_$(Get-Random).json"
+    $TmpB64 = Join-Path $env:TEMP "vex_upload_$(Get-Random).b64"
+    $TmpResponse = Join-Path $env:TEMP "vex_upload_$(Get-Random).response"
+    
+    try {
+        # convert binary to base64
+        Write-ColorOutput "Encoding binary to base64..." "Yellow"
+        $BinBytes = [System.IO.File]::ReadAllBytes($BinFile)
+        $Base64String = [System.Convert]::ToBase64String($BinBytes)
+        [System.IO.File]::WriteAllText($TmpB64, $Base64String)
+        
+        # construct the upload URL
+        if ($NetworkUpload -match "^https?://") {
+            $UploadUrl = $NetworkUpload
+        } else {
+            $UploadUrl = "http://$NetworkUpload"
+        }
+        
+        # ensure URL ends with /upload
+        if ($UploadUrl -notmatch "/upload$") {
+            $UploadUrl = $UploadUrl.TrimEnd('/') + "/upload"
+        }
+        
+        Write-ColorOutput "Uploading $ProjectName.bin to slot $UploadSlot at $UploadUrl..." "Yellow"
+        
+        # escape JSON strings
+        $EscName = $ProjectName -replace '"', '\"'
+        $EscDesc = $ProjectDescription -replace '"', '\"'
+        
+        # create JSON payload
+        $JsonPayload = @"
+{
+  "slot": $UploadSlot,
+  "name": "$EscName",
+  "description": "$EscDesc",
+  "compress": true,
+  "after_upload": "show_run_screen",
+  "monolith_b64": "$(Get-Content $TmpB64 -Raw)"
+}
+"@
+        
+        [System.IO.File]::WriteAllText($TmpJson, $JsonPayload)
+        
+        # upload via HTTP POST using curl
+        $CurlArgs = @(
+            "-sS",
+            "-o", $TmpResponse,
+            "-w", "%{http_code}",
+            "-X", "POST",
+            "-H", "Content-Type: application/json",
+            "--data-binary", "@$TmpJson",
+            $UploadUrl
+        )
+        
+        $HttpCode = & $CurlPath @CurlArgs
+        $ResponseBody = if (Test-Path $TmpResponse) { Get-Content $TmpResponse -Raw } else { "" }
+        
+        if ($HttpCode -eq "200") {
+            Write-ColorOutput "Upload successful!" "Green"
+            if ($ResponseBody) {
+                Write-ColorOutput "Server response: $ResponseBody" "Green"
+            }
+        } else {
+            Write-ColorOutput "Upload failed with HTTP code: $HttpCode" "Red"
+            if ($ResponseBody) {
+                Write-ColorOutput "Server response: $ResponseBody" "Red"
+            }
+            exit 1
+        }
+    } finally {
+        # cleanup temp files
+        Remove-Item $TmpJson -Force -ErrorAction SilentlyContinue
+        Remove-Item $TmpB64 -Force -ErrorAction SilentlyContinue
+        Remove-Item $TmpResponse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+# run program if requested
+if ($Run -ge 0) {
+    Write-ColorOutput "Running program on VEX brain..." "Yellow"
+    
+    # check if curl is available
+    $CurlPath = $null
+    try {
+        $CurlPath = (Get-Command curl -ErrorAction Stop).Source
+    } catch {
+        Write-ColorOutput "Error: curl is required for running programs but is not installed" "Red"
+        exit 1
+    }
+    
+    # get slot number
+    $RunSlot = 1  # default to 1
+    if ($Run -gt 0) {
+        $RunSlot = $Run
+    } elseif ($Slot) {
+        $RunSlot = $Slot
+    } elseif (Test-Path $VexProjectSettingsFile) {
+        try {
+            $VexSettings = Get-Content $VexProjectSettingsFile -Raw | ConvertFrom-Json
+            if ($VexSettings.project -and $VexSettings.project.slot) {
+                $RunSlot = $VexSettings.project.slot
+            }
+        } catch {
+            # ignore errors
+        }
+    }
+    
+    # construct the run URL
+    if ($NetworkUpload -match "^https?://") {
+        $RunUrl = $NetworkUpload
+    } else {
+        $RunUrl = "http://$NetworkUpload"
+    }
+    
+    # ensure URL ends with /run
+    if ($RunUrl -notmatch "/run$") {
+        $RunUrl = $RunUrl.TrimEnd('/') + "/run"
+    }
+    
+    Write-ColorOutput "Running program in slot $RunSlot at $RunUrl..." "Yellow"
+    
+    # create temp files
+    $TmpRunJson = Join-Path $env:TEMP "vex_run_$(Get-Random).json"
+    $TmpRunResponse = Join-Path $env:TEMP "vex_run_$(Get-Random).response"
+    
+    try {
+        # create JSON payload
+        $RunJsonPayload = @"
+{
+  "slot": $RunSlot
+}
+"@
+        
+        [System.IO.File]::WriteAllText($TmpRunJson, $RunJsonPayload)
+        
+        # run via HTTP POST
+        $CurlArgs = @(
+            "-sS",
+            "-o", $TmpRunResponse,
+            "-w", "%{http_code}",
+            "-X", "POST",
+            "-H", "Content-Type: application/json",
+            "--data-binary", "@$TmpRunJson",
+            $RunUrl
+        )
+        
+        $HttpCode = & $CurlPath @CurlArgs
+        $ResponseBody = if (Test-Path $TmpRunResponse) { Get-Content $TmpRunResponse -Raw } else { "" }
+        
+        if ($HttpCode -eq "200") {
+            Write-ColorOutput "Program started successfully!" "Green"
+            if ($ResponseBody) {
+                Write-ColorOutput "Server response: $ResponseBody" "Green"
+            }
+        } else {
+            Write-ColorOutput "Run failed with HTTP code: $HttpCode" "Red"
+            if ($ResponseBody) {
+                Write-ColorOutput "Server response: $ResponseBody" "Red"
+            }
+            exit 1
+        }
+    } finally {
+        # cleanup temp files
+        Remove-Item $TmpRunJson -Force -ErrorAction SilentlyContinue
+        Remove-Item $TmpRunResponse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+# stop program if requested
+if ($Stop -ge 0) {
+    Write-ColorOutput "Stopping program on VEX brain..." "Yellow"
+    
+    # check if curl is available
+    $CurlPath = $null
+    try {
+        $CurlPath = (Get-Command curl -ErrorAction Stop).Source
+    } catch {
+        Write-ColorOutput "Error: curl is required for stopping programs but is not installed" "Red"
+        exit 1
+    }
+    
+    # get slot number
+    $StopSlot = 1  # default to 1
+    if ($Stop -gt 0) {
+        $StopSlot = $Stop
+    } elseif ($Slot) {
+        $StopSlot = $Slot
+    } elseif (Test-Path $VexProjectSettingsFile) {
+        try {
+            $VexSettings = Get-Content $VexProjectSettingsFile -Raw | ConvertFrom-Json
+            if ($VexSettings.project -and $VexSettings.project.slot) {
+                $StopSlot = $VexSettings.project.slot
+            }
+        } catch {
+            # ignore errors
+        }
+    }
+    
+    # construct the stop URL
+    if ($NetworkUpload -match "^https?://") {
+        $StopUrl = $NetworkUpload
+    } else {
+        $StopUrl = "http://$NetworkUpload"
+    }
+    
+    # ensure URL ends with /stop
+    if ($StopUrl -notmatch "/stop$") {
+        $StopUrl = $StopUrl.TrimEnd('/') + "/stop"
+    }
+    
+    Write-ColorOutput "Stopping program in slot $StopSlot at $StopUrl..." "Yellow"
+    
+    # create temp files
+    $TmpStopJson = Join-Path $env:TEMP "vex_stop_$(Get-Random).json"
+    $TmpStopResponse = Join-Path $env:TEMP "vex_stop_$(Get-Random).response"
+    
+    try {
+        # create JSON payload
+        $StopJsonPayload = @"
+{
+  "slot": $StopSlot
+}
+"@
+        
+        [System.IO.File]::WriteAllText($TmpStopJson, $StopJsonPayload)
+        
+        # stop via HTTP POST
+        $CurlArgs = @(
+            "-sS",
+            "-o", $TmpStopResponse,
+            "-w", "%{http_code}",
+            "-X", "POST",
+            "-H", "Content-Type: application/json",
+            "--data-binary", "@$TmpStopJson",
+            $StopUrl
+        )
+        
+        $HttpCode = & $CurlPath @CurlArgs
+        $ResponseBody = if (Test-Path $TmpStopResponse) { Get-Content $TmpStopResponse -Raw } else { "" }
+        
+        if ($HttpCode -eq "200") {
+            Write-ColorOutput "Program stopped successfully!" "Green"
+            if ($ResponseBody) {
+                Write-ColorOutput "Server response: $ResponseBody" "Green"
+            }
+        } else {
+            Write-ColorOutput "Stop failed with HTTP code: $HttpCode" "Red"
+            if ($ResponseBody) {
+                Write-ColorOutput "Server response: $ResponseBody" "Red"
+            }
+            exit 1
+        }
+    } finally {
+        # cleanup temp files
+        Remove-Item $TmpStopJson -Force -ErrorAction SilentlyContinue
+        Remove-Item $TmpStopResponse -Force -ErrorAction SilentlyContinue
     }
 }
