@@ -48,8 +48,9 @@ void right_auto_path() {
     // Long Goal
     new Parallel({
       drive_sys.DriveToPointCmd({43, 23.25}, vex::reverse, 0.45),
-      intake_sys.MatchLoaderCmd(false), intake_sys.FrontPurgeCmd()}),
-    SunroofSolCmd(false),
+      intake_sys.MatchLoaderCmd(false),
+      SunroofSolCmd(false),
+      intake_sys.FrontPurgeCmd()}),
     intake_sys.OutBackCmd(), 
     drive_sys.DriveTankCmd(-0.25, -0.25)->withTimeout(5),
     SunroofSolCmd(true),
