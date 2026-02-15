@@ -3,8 +3,8 @@
 /**
  * Main entrypoint for the autonomous period
 */
-void autonomous();
+extern void (*autonomous)();
 
-void red_auto_path();
-
-void skills();
+void right_auto_path();
+void left_auto_path();
+void skills_path();

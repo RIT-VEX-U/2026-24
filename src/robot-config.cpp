@@ -124,6 +124,20 @@ struct pose_timestamp {
 
 SerialLogger logger(vex::PORT12);
 
+/*                 144
+ * y /---------------\ 144
+ *   |    90deg      |
+ *   |      ^        |
+ *   |    < o > 0deg |
+ *   |      v        |
+ *   |    270deg     |
+ * 0 \_______________/
+ *   0               x
+*/
+Pose2d right_auto_pose(19.5, 54, from_degrees(270));
+// Pose2d left_auto_pose(tbd, tbd, from_degrees(tbd));
+// Pose2d skills_auto_pose(tbd, tbd, from_degrees(tbd));
+Pose2d &auto_start_pose = right_auto_pose;
 void robot_init() {
  while (!logger.is_connected()) {
    logger.update();
@@ -150,13 +164,13 @@ void robot_init() {
     new screen::OdometryPage(odom, 15, 15, true),
   };
   screen::start_screen(Brain.Screen, pages);
-  odom.set_position({20, 88, from_degrees(90)});
+  odom.set_position(auto_start_pose);
   printf("started\n");
 
   init_us = vexSystemHighResTimeGet();
   
   lidar.start();
-  lidar.reset_ukf({48, 96, from_degrees(0)});
+  lidar.reset_ukf(auto_start_pose);
   logger.define_and_send_schema(0x01, "time:u64, x:f32, y:f32, t:f32");
   while (true) {
     // lidar.resetUKF({48, 96, 180});
@@ -175,4 +189,3 @@ void robot_init() {
     vexDelay(10);
   }
 }
-

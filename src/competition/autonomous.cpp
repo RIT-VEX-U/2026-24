@@ -8,11 +8,81 @@
 #include "robot-config.h"
 #include <vex_global.h>
 
-void autonomous() {
-  skills();
+void (*autonomous)() = right_auto_path;
+
+// --- AutoCommands ---
+
+AutoCommand *SunroofSolCmd(bool sol_on) {
+  return new FunctionCommand([sol_on]() {
+    sunroof_solonoid.set(sol_on);
+    return true;
+  });
 }
-void skills() {
-  odom.set_position({20, 88, from_degrees(90)});
+
+// --- Paths ---
+
+void right_auto_path() {
+  intake_sys.auto_fix_jamming(true);
+  CommandController cc{
+    new Async(new FunctionCommand([]() {
+      while (true) {
+        printf(
+          "ODO X: %f ODO Y: %f, ODO ROT: %f\n", odom.get_position().x(),
+          odom.get_position().y(), odom.get_position().rotation().degrees()
+        );
+        vexDelay(100);
+      }
+      return true;
+      }) ),
+    
+    // Starts at {19.5, 54, from_degrees(270)}
+    // Matchloader
+    intake_sys.MatchLoaderCmd(true),
+    drive_sys.DriveToPointCmd({19.5, 22.5}, vex::forward, 0.75),
+    drive_sys.TurnToHeadingCmd(180, .8)->withTimeout(2),
+    SunroofSolCmd(true),
+    intake_sys.AutoLoadCmd(),
+    drive_sys.DriveTankCmd(.6,.6)->withTimeout(0.75),
+    drive_sys.DriveTankCmd(.15,.15)->withTimeout(7.25),
+
+    // Long Goal
+    new Parallel({
+      drive_sys.DriveToPointCmd({43, 23.25}, vex::reverse, 0.45),
+      intake_sys.MatchLoaderCmd(false), intake_sys.FrontPurgeCmd()}),
+    SunroofSolCmd(false),
+    intake_sys.OutBackCmd(), 
+    drive_sys.DriveTankCmd(-0.25, -0.25)->withTimeout(5),
+    SunroofSolCmd(true),
+    drive_sys.DriveTankCmd(-0.25, -0.25)
+  };
+
+  cc.run();
+}
+
+void left_auto_path() {
+  CommandController cc{
+    new Async(new FunctionCommand([]() {
+      while (true) {
+        printf(
+          "ODO X: %f ODO Y: %f, ODO ROT: %f\n", odom.get_position().x(),
+          odom.get_position().y(), odom.get_position().rotation().degrees()
+        );
+        vexDelay(100);
+      }
+      return true;
+      }) ),
+
+      // Starts at {tbd, tbd, from_degrees(tbd)}
+      // Matchloader
+
+      // Long Goal
+  };
+
+  cc.run();
+}
+
+void skills_path() {
+  /*odom.set_position({20, 88, from_degrees(90)});
   intake_sys.auto_fix_jamming(true);
   CommandController cc{
     new Async(new FunctionCommand([]() {
@@ -105,79 +175,5 @@ void skills() {
     drive_sys.DriveToPointCmd({43, 23}, vex::forward, 0.6),
     intake_sys.OutTopCmd(),
   };
-  cc.run();
+  cc.run();*/
 }
-
-void red_auto_path(){
-  // odompod_solonoid.set(true);
-  // remeasure
-  odom.set_position({22, 88, 0});
-  intake_sys.auto_fix_jamming(true);
-  CommandController cc{
-    new Async(new FunctionCommand([]() {
-      while (true) {
-        printf(
-          "ODO X: %f ODO Y: %f, ODO ROT: %f\n", odom.get_position().x(),
-          odom.get_position().y(), odom.get_position().rotation().degrees()
-        );
-        vexDelay(100);
-      }
-      return true;
-      })),
-    //go to blocks in center
-    // drive_sys.DriveForwardCmd(10, vex::forward, 0.6),
-    // drive_sys.TurnToPointCmd({69, 96})->withTimeout(2),
-    intake_sys.ColorSortCmd(true),
-    intake_sys.IntakeCmd(),
-    drive_sys.DriveToPointCmd({68, 102}, vex::forward, 0.4),
-    drive_sys.TurnToHeadingCmd(90),
-    drive_sys.DriveForwardCmd(12, vex::forward, 0.2),
-    new DelayCommand(200),
-    intake_sys.IntakeStopCmd(),
-    // score in middle
-    drive_sys.DriveToPointCmd({49, 99}, vex::reverse, 0.6),
-    drive_sys.TurnToHeadingCmd(315)->withTimeout(2),
-    drive_sys.DriveForwardCmd(10, vex::forward, 0.6),
-    intake_sys.OutMiddleCmd(),
-    new DelayCommand(4000),
-    intake_sys.IntakeStopCmd(),
-    intake_sys.ColorSortCmd(false),
-    // get match load
-    drive_sys.DriveToPointCmd({24, 118}, vex::reverse, 0.6),
-    drive_sys.TurnToHeadingCmd(180)->withTimeout(2),
-    intake_sys.IntakeCmd(),
-    intake_sys.MatchLoaderCmd(true),
-    drive_sys.DriveForwardCmd(24, vex::forward, 0.4)->withTimeout(2),
-    new DelayCommand(200),
-    drive_sys.DriveTankCmd(1,1)->withTimeout(0.2),
-    new DelayCommand(200),
-    drive_sys.DriveTankCmd(1,1)->withTimeout(0.2),
-    new DelayCommand(200),
-    drive_sys.DriveTankCmd(1,1)->withTimeout(0.2),
-    new DelayCommand(200),
-    drive_sys.DriveForwardCmd(10, vex::reverse, 0.6),
-    intake_sys.IntakeStopCmd(),
-    intake_sys.MatchLoaderCmd(false),
-    //go to score
-    drive_sys.TurnToHeadingCmd(0, 0.4)->withTimeout(2),
-    drive_sys.DriveForwardCmd(21, vex::forward, 0.6),
-    intake_sys.OutTopCmd(),
-    new DelayCommand(5000),
-    intake_sys.IntakeStopCmd(),
-    drive_sys.DriveForwardCmd(10, vex::reverse, 0.6),
-    drive_sys.TurnToHeadingCmd(180)->withTimeout(1),
-    intake_sys.MatchLoaderCmd(true),
-    drive_sys.DriveForwardCmd(14),
-    new DelayCommand(200),
-    drive_sys.DriveTankCmd(1,1)->withTimeout(0.2),
-    new DelayCommand(200),
-    drive_sys.DriveTankCmd(1,1)->withTimeout(0.2),
-    new DelayCommand(200),
-    drive_sys.DriveTankCmd(1,1)->withTimeout(0.2),
-    new DelayCommand(200),
-  };
-  cc.run();
-  printf("X: %.2f, Y: %.2f, Rot: %.2f\n", odom.get_position().x(), odom.get_position().y(), odom.get_position().rotation().degrees());
-}
-
-
