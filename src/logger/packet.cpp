@@ -366,7 +366,7 @@ size_t SerialLoggerEncoder::encode_data_packet(uint8_t message_id, const double*
 // =============================================================================
 
 SerialLoggerEncoder::SerialLoggerDataBuilder::SerialLoggerDataBuilder(SerialLoggerEncoder* enc, uint8_t message_id) 
-    : encoder(enc), message_id(message_id), offset(1), field_index(0) {
+    : encoder(enc), offset(1), field_index(0) {
     
     schema = encoder->get_schema(message_id);
     if (!schema) {

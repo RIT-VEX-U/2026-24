@@ -1,9 +1,12 @@
 #pragma once
-#include "vex.h"
+
+#include "vex_thread.h"
+#include "v5.h"
 
 #include <cstddef>
 #include <cstdint>
 #include <vector>
+#include <stdio.h>
 
 class COBSSerialDevice {
   public:
@@ -76,7 +79,6 @@ class COBSSerialDevice {
   private:
     vex::mutex serial_access_mut;
     int32_t port;
-    int32_t baud;
 
     // Buffer to hold data about to be written
     Packet writing_buffer;

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/utils/logger.h"
+#include "logger/logger.h"
 #ifndef PI
 #define PI 3.141592654
 #endif
@@ -36,7 +38,7 @@ class TankDrive {
      * more info
      * @param odom an odometry system to track position and rotation. this is necessary to execute autonomous paths
      */
-    TankDrive(motor_group &left_motors, motor_group &right_motors, robot_specs_t &config, OdometryBase *odom = NULL);
+    TankDrive(motor_group &left_motors, motor_group &right_motors, robot_specs_t &config, OdometryBase *odom = NULL, SerialLogger *logger = NULL);
 
     AutoCommand *DriveToPointCmd(
       Translation2d pt, vex::directionType dir = vex::forward, double max_speed = 1.0, double end_speed = 0.0
@@ -347,4 +349,5 @@ class TankDrive {
     bool func_initialized = false; ///< used to control initialization of autonomous driving. (you only wan't to set the
                                    ///< target once, not every iteration that you're driving)
     bool is_pure_pursuit = false;  ///< true if we are driving with a pure pursuit system
+    SerialLogger *logger;
 };

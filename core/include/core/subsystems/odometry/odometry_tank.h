@@ -7,7 +7,6 @@
 
 #include "core/robot_specs.h"
 
-static int background_task(void *odom_obj);
 
 /**
  * OdometryTank defines an odometry system for a tank drivetrain

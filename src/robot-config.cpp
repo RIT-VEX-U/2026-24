@@ -100,7 +100,7 @@ robot_specs_t config = {
   .correction_pid = turn_pid_cfg,
 };
 
-LidarReceiver lidar(vex::PORT15, 921600);
+LidarReceiver lidar(vex::PORT15, 921600, &imu, &left_motors, &right_motors, &config, &logger);
 
 OdometryLidarWrapper odom(&lidar);
 OdometryTank odomtank(left_motors, right_motors, config, &imu);

@@ -371,7 +371,7 @@ set(CFLAGS_V7 "-march=armv7-a -mfpu=neon -mfloat-abi=softfp")
 if(VEX_QUIET_BUILD)
     set(WARNING_FLAGS "-w")  # suppress all warnings
 else()
-    set(WARNING_FLAGS "-Wall -Werror=return-type")  # enable all warnings
+  set(WARNING_FLAGS "-Wall -Wno-c++17-extensions -Werror=return-type")  # enable all warnings
 endif()
 
 set(CMAKE_C_FLAGS                   "${CFLAGS_CL} ${CFLAGS_V7} -Os ${WARNING_FLAGS} -ansi -std=gnu99")

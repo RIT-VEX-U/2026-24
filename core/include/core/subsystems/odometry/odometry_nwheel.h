@@ -79,10 +79,10 @@ public:
       double theta_factor = -(x * sin(theta_rad)) - (y * cos(theta_rad));
 
       // prevent numerical error due to float precision
-      if (abs(y_factor) < 1e-9) {
+      if (std::abs(y_factor) < 1e-9) {
         y_factor = 0;
       }
-      if (abs(x_factor) < 1e-9) {
+      if (std::abs(x_factor) < 1e-9) {
         x_factor = 0;
       }
 

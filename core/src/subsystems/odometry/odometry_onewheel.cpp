@@ -3,7 +3,7 @@
 OdometryOneWheel::OdometryOneWheel(
   vex::rotation *odompod, robot_specs_t &config, Translation2d offset, vex::inertial *imu, bool is_async
 )
-    : OdometryBase(is_async), odompod(odompod), imu(imu), offset(offset), config(config) {}
+    : OdometryBase(is_async), offset(offset), odompod(odompod), imu(imu), config(config) {}
 
 /**
  * Resets the position and rotational data to the input.

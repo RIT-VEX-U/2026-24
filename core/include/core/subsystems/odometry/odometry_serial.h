@@ -70,13 +70,13 @@ class OdometrySerial : public OdometryBase {
     double get_accel() override;
 
   private:
+    Pose2d pose;
+    Pose2d pose_offset;
+
     int32_t _port;
 
     bool calc_vel_acc_on_brain;
 
-    Pose2d pose;
-
-    Pose2d pose_offset;
 
     double speed;
     double accel;

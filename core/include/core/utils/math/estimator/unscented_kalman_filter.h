@@ -462,6 +462,9 @@ template <int STATES, int INPUTS, int OUTPUTS> class UnscentedKalmanFilter {
   private:
     std::function<StateVector(const StateVector &, const InputVector &)> f_;
     std::function<OutputVector(const StateVector &, const InputVector &)> h_;
+
+    WithInputIntegrator integrator_;
+
     std::function<StateVector(const EMat<STATES, NUM_SIGMAS> &, const EVec<NUM_SIGMAS> &)> mean_func_X_;
     std::function<OutputVector(const EMat<OUTPUTS, NUM_SIGMAS> &, const EVec<NUM_SIGMAS> &)> mean_func_Y_;
     std::function<StateVector(const StateVector &, const StateVector &)> residual_func_X_;
@@ -475,7 +478,6 @@ template <int STATES, int INPUTS, int OUTPUTS> class UnscentedKalmanFilter {
 
     ScaledSphericalSimplexSigmaPoints<STATES> pts_;
 
-    WithInputIntegrator integrator_;
 };
 
 /**

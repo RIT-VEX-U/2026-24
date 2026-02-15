@@ -71,7 +71,6 @@ public:
     class SerialLoggerDataBuilder {
     private:
         SerialLoggerEncoder* encoder;
-        uint8_t message_id;
         uint8_t raw_buffer[MAX_DATA_BYTES + 3];
         size_t offset;
         size_t field_index;

@@ -82,7 +82,7 @@ TurnDegreesCommand::TurnDegreesCommand(
  * Overrides run from AutoCommand
  * @returns true when execution is complete, false otherwise
  */
-bool TurnDegreesCommand::run() { return drive_sys.turn_degrees(degrees, max_speed, end_speed); }
+bool TurnDegreesCommand::run() { return drive_sys.turn_degrees(degrees, feedback, max_speed, end_speed); }
 
 /*
  * Returns a string describing the commands functionality

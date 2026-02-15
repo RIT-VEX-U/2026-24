@@ -5,9 +5,9 @@
 #include "core/utils/math/geometry/rotation2d.h"
 #include "core/utils/math_util.h"
 
-TankDrive::TankDrive(motor_group &left_motors, motor_group &right_motors, robot_specs_t &config, OdometryBase *odom)
-    : left_motors(left_motors), right_motors(right_motors), correction_pid(config.correction_pid), odometry(odom),
-      config(config) {
+TankDrive::TankDrive(motor_group &left_motors, motor_group &right_motors, robot_specs_t &config, OdometryBase *odom, SerialLogger *logger)
+    : left_motors(left_motors), right_motors(right_motors), odometry(odom), correction_pid(config.correction_pid), 
+      config(config), logger(logger) {
     drive_default_feedback = config.drive_feedback;
     turn_default_feedback = config.turn_feedback;
 }
@@ -783,6 +783,17 @@ bool TankDrive::pure_pursuit(
     }
     Pose2d robot_pose = odometry->get_position();
 
+    static uint16_t id = 1;
+
+    static bool logger_schema_init = false;
+
+    if (logger != NULL) {
+        logger_schema_init = [this] {
+            logger->define_and_send_schema(0x05, "pathid:u16,x:f32,y:f32");
+            return true;
+        }();
+    }
+
     // On function initialization, send the path-length estimate to the feedback controller
     if (!func_initialized) {
         if (dir != directionType::rev) {
@@ -790,6 +801,18 @@ bool TankDrive::pure_pursuit(
         } else {
             feedback.init(estimate_path_length(points), 0);
         }
+
+        if (logger != NULL && logger_schema_init) {
+            for (int i = 0; i < points.size(); i++) {
+                logger->build(0x05)
+                  .add((uint16_t)id)
+                  .add((float)points[i].x())
+                  .add((float)points[i].y())
+                  .send();
+            }
+        }
+
+        id++;
 
         func_initialized = true;
     }

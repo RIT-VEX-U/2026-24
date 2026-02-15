@@ -3,21 +3,7 @@
 #include <stdint.h>
 #include "logger/packet.h"
 
-// gonna do this everywhere that uses files from v5_apiuser.h cuz neovim hates when I include that...
-extern "C" {
-    void     vexGenericSerialEnable(uint32_t index, int32_t options);
-    void     vexGenericSerialBaudrate(uint32_t index, int32_t baudrate);
-    int32_t  vexGenericSerialWriteChar(uint32_t index, uint8_t c);
-    int32_t  vexGenericSerialWriteFree(uint32_t index);
-    int32_t  vexGenericSerialTransmit(uint32_t index, uint8_t *buffer, int32_t length);
-    int32_t  vexGenericSerialReadChar(uint32_t index);
-    int32_t  vexGenericSerialPeekChar(uint32_t index);
-    int32_t  vexGenericSerialReceiveAvail(uint32_t index);
-    int32_t  vexGenericSerialReceive(uint32_t index, uint8_t *buffer, int32_t length);
-    void     vexGenericSerialFlush(uint32_t index);
-    uint32_t vexSystemTimeGet();
-    void     vexDelay(uint32_t timems);
-}
+#include "v5.h"
 
 #define HANDSHAKE_ID 0xFF
 #define HANDSHAKE_RETRY_MS 5000

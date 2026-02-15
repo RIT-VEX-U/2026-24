@@ -1,13 +1,16 @@
 #pragma once
 
 #include "core/device/cobs_device.h"
+#include "core/robot_specs.h"
 #include "core/utils/math/geometry/pose2d.h"
 #include "core/utils/math/geometry/rotation2d.h"
 #include "core/utils/math/estimator/unscented_kalman_filter.h"
 #include "core/utils/math/numerical/numerical_integration.h"
+#include "logger/logger.h"
 #include <cstdint>
 #include <cmath>
 #include <limits>
+#include <vex_motorgroup.h>
 #include <vex_task.h>
 
 constexpr double FIELD_OFFSET = 0.5;
@@ -33,7 +36,7 @@ namespace lidar_ukf {
 
 class LidarReceiver : public COBSSerialDevice {
 public:
-    LidarReceiver(int port, int baudrate);
+    LidarReceiver(int port, int baudrate, vex::inertial *imu, vex::motor_group *left_motors, vex::motor_group *right_motors, robot_specs_t *config, SerialLogger *logger);
 
     void start();
     
@@ -51,7 +54,12 @@ public:
 
     double BEAM_TOLERANCE = 20;
 private:
-    
+    vex::inertial *imu;
+    vex::motor_group *left_motors;
+    vex::motor_group *right_motors;
+    robot_specs_t *config;
+    SerialLogger *logger;
+
     vex::task* lidar_handle_ = nullptr;
     bool running_ = false;
     
@@ -65,6 +73,7 @@ private:
     EVec<3> get_robot_velocity(); // from encoders
 
     friend int lidar_thread(void* ptr);
+
 };
 
 int lidar_thread(void* ptr);

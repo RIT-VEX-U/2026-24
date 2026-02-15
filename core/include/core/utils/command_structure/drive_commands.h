@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include "core/utils/formatting.h"
 #include "core/subsystems/tank_drive.h"
 #include "core/utils/command_structure/auto_command.h"
 #include "core/utils/geometry.h"

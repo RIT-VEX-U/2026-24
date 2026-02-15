@@ -35,8 +35,8 @@
 OdometrySerial::OdometrySerial(
   bool is_async, bool calc_vel_acc_on_brain, Pose2d initial_pose, Pose2d sensor_offset, int32_t port, int32_t baudrate
 )
-    : OdometryBase(is_async), calc_vel_acc_on_brain(calc_vel_acc_on_brain), pose(Pose2d(0, 0, 0)),
-      pose_offset(Pose2d(0, 0, 0)), _port(port) {
+    : OdometryBase(is_async), pose(Pose2d(0, 0, 0)),
+      pose_offset(Pose2d(0, 0, 0)), _port(port), calc_vel_acc_on_brain(calc_vel_acc_on_brain) {
     vexGenericSerialEnable(_port, 0);
     vexGenericSerialBaudrate(_port, baudrate);
     send_config(initial_pose, sensor_offset, calc_vel_acc_on_brain);

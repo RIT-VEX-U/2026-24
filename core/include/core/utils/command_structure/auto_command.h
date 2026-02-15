@@ -6,9 +6,9 @@
 
 #pragma once
 
-#include "core/utils/formatting.h"
 #include "vex.h"
-#include <atomic>
+#include "core/utils/formatting.h"
+ 
 #include <functional>
 #include <queue>
 #include <vector>
@@ -33,6 +33,7 @@ class Condition {
 class AutoCommand {
   public:
     static constexpr double default_timeout = 10.0;
+    virtual ~AutoCommand() = default;
     /**
      * Executes the command
      * Overridden by child classes
@@ -77,7 +78,7 @@ class AutoCommand {
 class FunctionCommand : public AutoCommand {
   public:
     FunctionCommand(std::function<bool(void)> f) : f(f) {}
-    bool run() { return f(); }
+    bool run() override { return f(); }
     std::string toString() override { return "Function Command"; }
 
   private:

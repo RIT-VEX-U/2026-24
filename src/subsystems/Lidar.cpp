@@ -1,5 +1,6 @@
-#include "subsystems/Lidar.h"
 #include "robot-config.h"
+#include "subsystems/Lidar.h"
+#include "logger/logger.h"
 #include <cstring>
 #include <cmath>
 #include <v5_api.h>
@@ -113,8 +114,8 @@ namespace lidar_ukf {
     }
 }
 
-LidarReceiver::LidarReceiver(int port, int baudrate) 
-    : COBSSerialDevice(port, baudrate), running_(false), ukf_(lidar_ukf::createUKF()) {
+LidarReceiver::LidarReceiver(int port, int baudrate, vex::inertial *imu, vex::motor_group *left_motors, vex::motor_group *right_motors, robot_specs_t *config, SerialLogger *logger) 
+    : COBSSerialDevice(port, baudrate), imu(imu), left_motors(left_motors), right_motors(right_motors), config(config), logger(logger), running_(false), ukf_(lidar_ukf::createUKF()) {
     // start at center
     EVec<3> initial_state{72, 72, 0};
     ukf_.set_xhat(initial_state);
@@ -166,16 +167,16 @@ void LidarReceiver::reset_ukf(const Pose2d& initial_pose) {
 }
 
 EVec<3> LidarReceiver::get_robot_velocity() {
-    double left_rpm = left_motors.velocity(vex::velocityUnits::rpm);
-    double right_rpm = right_motors.velocity(vex::velocityUnits::rpm);
+    double left_rpm = left_motors->velocity(vex::velocityUnits::rpm);
+    double right_rpm = right_motors->velocity(vex::velocityUnits::rpm);
     
-    double wheel_circumference = M_PI * config.odom_wheel_diam;
-    double left_vel = (left_rpm / 60.0) * wheel_circumference / config.odom_gear_ratio;
-    double right_vel = (right_rpm / 60.0) * wheel_circumference / config.odom_gear_ratio;
+    double wheel_circumference = M_PI * config->odom_wheel_diam;
+    double left_vel = (left_rpm / 60.0) * wheel_circumference / config->odom_gear_ratio;
+    double right_vel = (right_rpm / 60.0) * wheel_circumference / config->odom_gear_ratio;
     
     double vx = (left_vel + right_vel) / 2.0;
     double vy = 0.0;
-    double omega = deg2rad(imu.gyroRate(vex::axisType::yaxis, vex::dps));
+    double omega = deg2rad(imu->gyroRate(vex::axisType::yaxis, vex::dps));
     
     return EVec<3>{vx, vy, omega};
 }
@@ -185,9 +186,7 @@ int lidar_thread(void* ptr) {
     
     vexDelay(100);
     
-    constexpr size_t BUFFER_SIZE = 4;
-    uint8_t buf[BUFFER_SIZE];
-    logger.define_and_send_schema(0x04, "time:u64,d:f32,a:f32");
+    obj.logger->define_and_send_schema(0x04, "time:u64,d:f32,a:f32");
 
     int i = 0;
     while (obj.running_) {
@@ -252,7 +251,7 @@ int lidar_thread(void* ptr) {
 
             // log every other beam
             if (i % 2 == 0) {
-                logger.build(0x04)
+                obj.logger->build(0x04)
                     .add(meas_time)
                     .add((float)distance)
                     .add((float)angle)
