@@ -155,15 +155,21 @@ void IntakeSys::run_state_machine(bool sorting) {
       // Color-Independent Motors
       lightboard.set(true);
       spin_motor(front_roller, v, front_jammed);
-      spin_motor(agitator_roller, v, false);
       spin_motor(back_score_roller, -8, back_score_jammed);
       spin_motor(top_roller, -v, top_jammed);
+      spin_motor(agitator_roller, v, false);
       
       // Color-Dependent Motors
       BlockColor currentBlock = seeing_color(lower_intake_sensor);
-      if(autoload_prefer == BlockColor::NOTHING)    autoload_prefer = currentBlock;
-      else if(currentBlock == autoload_prefer)      spin_motor(back_roller, -v, back_jammed);
-      else if(currentBlock != BlockColor::NOTHING)  spin_motor(back_roller, v, back_jammed);
+      if(autoload_prefer == BlockColor::NOTHING) {      // Beginning of Macro
+        autoload_prefer = currentBlock;
+        back_roller.stop();
+      } else if(currentBlock == autoload_prefer) {      // Seeing preferred
+        spin_motor(back_roller, -v, back_jammed);
+      } else if(currentBlock != BlockColor::NOTHING) {  // Seeing opposing
+        spin_motor(back_roller, v, back_jammed);
+      } // Seeing nothing defaults to previous state
+      
       break; }
 
     case FRONTPURGE:
