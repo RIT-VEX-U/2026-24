@@ -68,8 +68,8 @@ void CommandController::run() {
     printf("Running Auto. Commands 1 to %d\n", command_queue.size());
     fflush(stdout);
     int command_count = 1;
-    vex::timer tmr;
-    tmr.reset();
+    //vex::timer tmr;
+    uint64_t start_us = vexSystemHighResTimeGet();
 
     while (!command_queue.empty()) {
         // retrieve and remove command at the front of the queue
@@ -118,7 +118,7 @@ void CommandController::run() {
         fflush(stdout);
         command_count++;
     }
-    printf("Finished commands in %f seconds\n", tmr.time(vex::sec));
+    printf("Finished commands in %f seconds\n", (vexSystemHighResTimeGet() - start_us)/1000000.0 /*tmr.time(vex::sec)*/);
 }
 
 std::string CommandController::toString() {

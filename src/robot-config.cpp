@@ -80,9 +80,9 @@ MotionController::m_profile_cfg_t drive_motion_cfg{
 MotionController drive_motion(drive_motion_cfg);
 
 PID::pid_config_t turn_pid_cfg{
-  .p = 0.025,
-  .i = 0.0,
-  .d = 0.004,
+  .p = 0.05, // 0.025
+  .i = 0.001,
+  .d = 0.004, // 0.004
   .deadband = 3,
   .on_target_time = 0.1,
   .error_method = PID::ERROR_TYPE::LINEAR,

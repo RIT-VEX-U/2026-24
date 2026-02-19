@@ -179,6 +179,7 @@ Branch::~Branch() {
 bool Branch::run() {
     if (!chosen) {
         choice = cond->test();
+        printf("Chosen %s\n", (choice) ? "TRUE" : "FALSE");
         chosen = true;
         tmr.reset();
     }
