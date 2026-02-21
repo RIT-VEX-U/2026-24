@@ -139,11 +139,11 @@ Pose2d right_auto_pose(19.5, 54, from_degrees(270));
 // Pose2d skills_auto_pose(tbd, tbd, from_degrees(tbd));
 Pose2d &auto_start_pose = right_auto_pose;
 void robot_init() {
+ imu.calibrate();
  while (!logger.is_connected()) {
    logger.update();
  }
 
- imu.calibrate();
  while(imu.isCalibrating()){
     vexDelay(10);
  }

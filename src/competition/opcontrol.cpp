@@ -21,6 +21,9 @@ void PID_Tuning();
 bool enable_drive = true;
 bool sunroof_lock = false;
 
+
+
+
 void opcontrol() {
   intake_sys.auto_fix_jamming(false);
 
@@ -52,18 +55,39 @@ void opcontrol() {
     intake_sys.outback();
   });
   con.ButtonUp.pressed([](){
-      enable_drive = false;
-      vexDelay(500);
-
-      imu.calibrate();
-      while (imu.isCalibrating()) {
-        vexDelay(10);
-      }
-      lidar.set_pose(Pose2d(lidar.get_pose().x(), lidar.get_pose().y(), from_degrees(0)));
-      lidar.BEAM_TOLERANCE = 999;
-      vexDelay(3000);
-      lidar.BEAM_TOLERANCE = 20;
-      enable_drive = true;
+      // enable_drive = false;
+      // vexDelay(500);
+      //
+      // imu.calibrate();
+      // while (imu.isCalibrating()) {
+      //   vexDelay(10);
+      // }
+      // lidar.set_pose(Pose2d(lidar.get_pose().x(), lidar.get_pose().y(), from_degrees(0)));
+      // lidar.BEAM_TOLERANCE = 999;
+      // vexDelay(3000);
+      // lidar.BEAM_TOLERANCE = 20;
+      // enable_drive = true;
+      // enable_drive = false;
+      // CommandController cc{
+      //     intake_sys.MatchLoaderCmd(true),
+      //     // drive_sys.DriveForwardCmd(24, vex::forward, 0.75),
+      //     new FunctionCommand([]() {
+      //         sunroof_solonoid.set(true);
+      //         return true;
+      //     }),
+      //     intake_sys.AutoLoadCmd(),
+      //     DriveTankRawCmd(1, 1),
+      //     new DelayCommand(370),
+      //     DriveTankRawCmd(0.7, 0.08),
+      //     new DelayCommand(600),
+      //     drive_sys.DriveTankCmd(0.3, 0.3),
+      //     new DelayCommand(800),
+      //     DriveTankRawCmd(0, 0),
+      //
+      // };
+      // cc.run();
+      // vexDelay(2000);
+      // enable_drive = true;
       });
   #ifdef TESTCODE
   con.ButtonUp.pressed([](){
@@ -99,6 +123,7 @@ void opcontrol() {
 
   IntakeSys::IntakeState intake_state = intake_sys.get_intake_state();
   while(true){
+    if(enable_drive) {
     IntakeSys::IntakeState prev_state = intake_state;
     intake_state = intake_sys.get_intake_state();
 
@@ -117,7 +142,6 @@ void opcontrol() {
 
     double left;
     double right;
-    if(enable_drive) {
       left = (double)con.Axis3.position() / 100;
       right = 
       #ifndef ARCADE

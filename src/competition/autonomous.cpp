@@ -19,6 +19,13 @@ AutoCommand *SunroofSolCmd(bool sol_on) {
   });
 }
 
+AutoCommand *DriveTankRawCmd(double left, double right) {
+  return new FunctionCommand([left, right]() {
+    drive_sys.drive_tank_raw(left, right);
+    return true;
+  });
+}
+
 // --- Paths ---
 
 void right_auto_path() {
@@ -37,20 +44,30 @@ void right_auto_path() {
     
     // Starts at {19.5, 54, from_degrees(270)}
     // Matchloader
+
     intake_sys.MatchLoaderCmd(true),
-    drive_sys.DriveForwardCmd(33, vex::forward, 0.75),//->withTimeout(2),
+    drive_sys.DriveForwardCmd(33, vex::forward, 0.8)->withTimeout(1.5),
     drive_sys.TurnToHeadingCmd(180, .8)->withTimeout(2.25),
     SunroofSolCmd(true),
     intake_sys.AutoLoadCmd(),
-    new Branch(
-      new FunctionCondition([]() {
-        return odom.get_position().rotation().wrapped_degrees_360() > 178;
-      }),
-      new InOrder({drive_sys.DriveTankCmd(.25,.35)->withTimeout(0.50),drive_sys.DriveTankCmd(.15,.15)->withTimeout(5.25)}),
-      new InOrder({drive_sys.DriveTankCmd(.35,.35)->withTimeout(0.50),drive_sys.DriveTankCmd(.15,.15)->withTimeout(5.25)
-    })),
-    //drive_sys.DriveTankCmd(.35,.35)->withTimeout(0.50),
-    //drive_sys.DriveTankCmd(.15,.15)->withTimeout(5.25),
+    DriveTankRawCmd(0.4, 0.4),
+    new DelayCommand(600),
+    DriveTankRawCmd(0.1, 0.1),
+    new DelayCommand(4500),
+
+    // QUICK MATCHLOAD
+    // intake_sys.MatchLoaderCmd(true),
+    // new FunctionCommand([]() {
+    //     sunroof_solonoid.set(true);
+    //     return true;
+    // }),
+    // intake_sys.AutoLoadCmd(),
+    // DriveTankRawCmd(1, 1),
+    // new DelayCommand(372),
+    // DriveTankRawCmd(0.7, 0.05),
+    // new DelayCommand(600),
+    // DriveTankRawCmd(0.2, 0.2),
+
 
     // Leaving Matchloader
     intake_sys.MatchLoaderCmd(false),
@@ -59,10 +76,16 @@ void right_auto_path() {
 
     // Long goal (drive to and score)
     new Parallel({
-      drive_sys.DriveToPointCmd({46, 23.75}, vex::reverse, .6, .6)->withTimeout(3), 
-      new InOrder({new DelayCommand(650), intake_sys.OutBackCmd()})}),
-    drive_sys.DriveTankCmd(-0.25, -0.25),
+      (new InOrder({drive_sys.DriveToPointCmd({44, 23.75}, vex::reverse, 0.8, 0.8)->withTimeout(2), 
+                   DriveTankRawCmd(-0.45, -0.45)}))->withTimeout(3),
+      (new InOrder({new DelayCommand(650), intake_sys.OutBackCmd()}))->withTimeout(3),
+    }),
+    new DelayCommand(2750),
+
+    DriveTankRawCmd(0.5, 0.5),
+    new DelayCommand(250),
     SunroofSolCmd(true),
+    DriveTankRawCmd(-0.45, -0.45),
   };
 
   cc.run();
@@ -111,31 +134,31 @@ void skills_path() {
     intake_sys.IntakeCmd(),
     drive_sys.DriveForwardCmd(24, vex::forward, 0.4)->withTimeout(2),
     new DelayCommand(200),
-    drive_sys.DriveTankCmd(0.4, 0.4)->withTimeout(0.2),
+    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
     new DelayCommand(200),
-    drive_sys.DriveTankCmd(0.4, 0.4)->withTimeout(0.2),
+    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
     new DelayCommand(200),
-    drive_sys.DriveTankCmd(0.4, 0.4)->withTimeout(0.2),
+    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
     new DelayCommand(200),
-    drive_sys.DriveTankCmd(0.4, 0.4)->withTimeout(0.2),
+    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
     new DelayCommand(200),
-    drive_sys.DriveTankCmd(0.4, 0.4)->withTimeout(0.2),
+    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
     new DelayCommand(200),
-    drive_sys.DriveTankCmd(0.4, 0.4)->withTimeout(0.2),
+    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
     new DelayCommand(200),
-    drive_sys.DriveTankCmd(0.4, 0.4)->withTimeout(0.2),
+    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
     new DelayCommand(200),
-    drive_sys.DriveTankCmd(0.4, 0.4)->withTimeout(0.2),
+    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
     new DelayCommand(200),
-    drive_sys.DriveTankCmd(0.4, 0.4)->withTimeout(0.2),
+    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
     new DelayCommand(200),
-    drive_sys.DriveTankCmd(0.4, 0.4)->withTimeout(0.2),
+    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
     new DelayCommand(200),
-    drive_sys.DriveTankCmd(0.4, 0.4)->withTimeout(0.2),
+    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
     new DelayCommand(200),
-    drive_sys.DriveTankCmd(0.4, 0.4)->withTimeout(0.2),
+    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
     new DelayCommand(200),
-    drive_sys.DriveTankCmd(0.4, 0.4)->withTimeout(0.2),
+    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
     odom.SetPositionCmd({12.5, 119, from_degrees(180)}),
     new DelayCommand(200),
     //get second match load
@@ -149,31 +172,31 @@ void skills_path() {
     intake_sys.IntakeCmd(),
     drive_sys.DriveForwardCmd(24, vex::forward, 0.4)->withTimeout(2),
     new DelayCommand(200),
-    drive_sys.DriveTankCmd(0.4, 0.4)->withTimeout(0.2),
+    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
     new DelayCommand(200),
-    drive_sys.DriveTankCmd(0.4, 0.4)->withTimeout(0.2),
+    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
     new DelayCommand(200),
-    drive_sys.DriveTankCmd(0.4, 0.4)->withTimeout(0.2),
+    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
     new DelayCommand(200),
-    drive_sys.DriveTankCmd(0.4, 0.4)->withTimeout(0.2),
+    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
     new DelayCommand(200),
-    drive_sys.DriveTankCmd(0.4, 0.4)->withTimeout(0.2),
+    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
     new DelayCommand(200),
-    drive_sys.DriveTankCmd(0.4, 0.4)->withTimeout(0.2),
+    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
     new DelayCommand(200),
-    drive_sys.DriveTankCmd(0.4, 0.4)->withTimeout(0.2),
+    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
     new DelayCommand(200),
-    drive_sys.DriveTankCmd(0.4, 0.4)->withTimeout(0.2),
+    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
     new DelayCommand(200),
-    drive_sys.DriveTankCmd(0.4, 0.4)->withTimeout(0.2),
+    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
     new DelayCommand(200),
-    drive_sys.DriveTankCmd(0.4, 0.4)->withTimeout(0.2),
+    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
     new DelayCommand(200),
-    drive_sys.DriveTankCmd(0.4, 0.4)->withTimeout(0.2),
+    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
     new DelayCommand(200),
-    drive_sys.DriveTankCmd(0.4, 0.4)->withTimeout(0.2),
+    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
     new DelayCommand(200),
-    drive_sys.DriveTankCmd(0.4, 0.4)->withTimeout(0.2),
+    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
     new DelayCommand(200),
     odom.SetPositionCmd({11, 26.5, from_degrees(180)}),
     drive_sys.DriveForwardCmd(10, vex::reverse, 0.6),

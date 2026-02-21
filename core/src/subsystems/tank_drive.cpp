@@ -4,6 +4,7 @@
 #include "core/utils/geometry.h"
 #include "core/utils/math/geometry/rotation2d.h"
 #include "core/utils/math_util.h"
+#include <vex_units.h>
 
 TankDrive::TankDrive(motor_group &left_motors, motor_group &right_motors, robot_specs_t &config, OdometryBase *odom, SerialLogger *logger)
     : left_motors(left_motors), right_motors(right_motors), odometry(odom), correction_pid(config.correction_pid), 
@@ -488,6 +489,14 @@ bool TankDrive::drive_to_point(
 
     return false;
 }
+
+// bool TankDrive::pivot_to_angle(double x, double y, double r, Feedback &feedback, vex::directionType dir = vex::forward, bool counterclockwise = true, double max_speed = 1) {
+//     if (odometry == NULL) {
+//         fprintf(stderr, "Odometry is NULL. Unable to run pivot_to_angle()\n");
+//         fflush(stderr);
+//         return true;
+//     }
+// }
 
 /**
  * Use odometry to automatically drive the robot to a point on the field.
