@@ -13,7 +13,8 @@
 #include <vex_motorgroup.h>
 #include <vex_task.h>
 
-constexpr double FIELD_OFFSET = 0.5;
+// 140.5in interior
+constexpr double FIELD_OFFSET = 1;
 constexpr double FIELD_SIZE = 142.5;
 constexpr double WALL_MIN = FIELD_OFFSET;
 constexpr double WALL_MAX = FIELD_SIZE - (FIELD_OFFSET * 2);

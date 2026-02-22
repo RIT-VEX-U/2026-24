@@ -6,7 +6,7 @@
 #include "v5.h"
 
 #define HANDSHAKE_ID 0xFF
-#define HANDSHAKE_RETRY_MS 5000
+#define HANDSHAKE_RETRY_MS 100
 
 class SerialLogger {
 private:
@@ -75,8 +75,11 @@ public:
         if (connected) return;
 
         printf("logger not connected\n");
+
+        process_incoming_handshake();
+        if (connected) return;
         
-        uint32_t now = vexSystemTimeGet();
+        uint32_t now = vexSystemHighResTimeGet() / 1000;
         
         if (last_handshake_attempt_ms == 0 || (now - last_handshake_attempt_ms >= HANDSHAKE_RETRY_MS)) {
             send_handshake();
