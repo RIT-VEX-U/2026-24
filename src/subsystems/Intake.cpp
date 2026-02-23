@@ -173,7 +173,8 @@ void IntakeSys::run_state_machine(bool sorting) {
       break; }
 
     case FRONTPURGE:
-      spin_motor(front_roller, -v, front_jammed);
+      //spin_motor(front_roller, -v, front_jammed);
+      front_roller.stop();
       spin_motor(agitator_roller, v, false);
       back_roller.stop();
       spin_motor(top_roller, -v, top_jammed);

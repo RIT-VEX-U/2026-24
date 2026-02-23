@@ -8,6 +8,8 @@
 #include "robot-config.h"
 #include <vex_global.h>
 
+#define LOG 3
+
 void (*autonomous)() = right_auto_path;
 
 // --- AutoCommands ---
@@ -29,6 +31,7 @@ AutoCommand *DriveTankRawCmd(double left, double right) {
 // --- Paths ---
 
 void right_auto_path() {
+  printf("Build %d\n", LOG);
   intake_sys.auto_fix_jamming(true);
   CommandController cc{
     new Async(new FunctionCommand([]() {
@@ -75,12 +78,14 @@ void right_auto_path() {
     intake_sys.FrontPurgeCmd(),
 
     // Long goal (drive to and score)
+    drive_sys.TurnToHeadingCmd(180, 0.8)->withTimeout(.5),
     new Parallel({
-      (new InOrder({drive_sys.DriveToPointCmd({44, 23.75}, vex::reverse, 0.8, 0.8)->withTimeout(2), 
-                   DriveTankRawCmd(-0.45, -0.45)}))->withTimeout(3),
+      (new InOrder({
+        drive_sys.DriveToPointCmd({43.25, 23.75}, vex::reverse, 0.8, 0.8)->withTimeout(2), 
+        DriveTankRawCmd(-0.45, -0.45)}))->withTimeout(3),
       (new InOrder({new DelayCommand(650), intake_sys.OutBackCmd()}))->withTimeout(3),
     }),
-    new DelayCommand(2750),
+    new DelayCommand(2950),
 
     DriveTankRawCmd(0.5, 0.5),
     new DelayCommand(250),
