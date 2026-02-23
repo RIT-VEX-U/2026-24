@@ -49,15 +49,14 @@ void right_auto_path() {
     // Matchloader
 
     intake_sys.MatchLoaderCmd(true),
-    drive_sys.DriveToPointCmd({19, 22}, vex::forward, 1)->withTimeout(1.8),
-    // drive_sys.DriveForwardCmd(33, vex::forward, 0.8)->withTimeout(1.5),
+    drive_sys.DriveForwardCmd(33, vex::forward, 0.8)->withTimeout(1.5),
     drive_sys.TurnToHeadingCmd(180, .8)->withTimeout(2.25),
     SunroofSolCmd(true),
     intake_sys.AutoLoadCmd(),
-    DriveTankRawCmd(0.42, 0.42),
-    new DelayCommand(800),
+    DriveTankRawCmd(0.4, 0.4),
+    new DelayCommand(600),
     DriveTankRawCmd(0.1, 0.1),
-    new DelayCommand(4750),
+    new DelayCommand(4500),
 
     // QUICK MATCHLOAD
     // intake_sys.MatchLoaderCmd(true),
@@ -88,8 +87,7 @@ void right_auto_path() {
     }),
     new DelayCommand(2950),
 
-    // DriveTankRawCmd(0.5, 0.5),
-    intake_sys.IntakeStopCmd(),
+    DriveTankRawCmd(0.5, 0.5),
     new DelayCommand(250),
     SunroofSolCmd(true),
     DriveTankRawCmd(-0.45, -0.45),
