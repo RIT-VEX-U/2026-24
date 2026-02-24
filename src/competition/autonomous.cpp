@@ -10,7 +10,7 @@
 
 #define LOG 3
 
-void (*autonomous)() = right_auto_path;
+void (*autonomous)() = left_auto_path;
 
 // --- AutoCommands ---
 
@@ -97,6 +97,7 @@ void right_auto_path() {
 }
 
 void left_auto_path() {
+  printf("Build %d\n", LOG);
   CommandController cc{
     new Async(new FunctionCommand([]() {
       while (true) {
@@ -107,12 +108,41 @@ void left_auto_path() {
         vexDelay(100);
       }
       return true;
-      }) ),
+    }) ),
 
-      // Starts at {tbd, tbd, from_degrees(tbd)}
-      // Matchloader
+    // Starts at {19.5, 86.5, from_degrees(90)}
 
-      // Long Goal
+    // Matchloader
+    intake_sys.MatchLoaderCmd(true),
+    drive_sys.DriveForwardCmd(33, vex::forward, 0.8)->withTimeout(1.5),
+    drive_sys.TurnToHeadingCmd(180, .8)->withTimeout(2.25),
+    SunroofSolCmd(true),
+    intake_sys.AutoLoadCmd(),
+    DriveTankRawCmd(0.4, 0.4),
+    new DelayCommand(600),
+    DriveTankRawCmd(0.1, 0.1),
+    new DelayCommand(4500),
+
+    // Leaving Matchloader
+    intake_sys.MatchLoaderCmd(false),
+    SunroofSolCmd(false),
+    intake_sys.FrontPurgeCmd(),
+
+    // Long goal (drive to and score)
+    drive_sys.TurnToHeadingCmd(180, 0.8)->withTimeout(.5),
+    new Parallel({
+      (new InOrder({
+        //drive_sys.DriveToPointCmd({43.25, 118.25}, vex::reverse, 0.8, 0.8)->withTimeout(2), 
+        drive_sys.DriveForwardCmd(33, vex::reverse, 0.8, 0.8)->withTimeout(2),
+        DriveTankRawCmd(-0.45, -0.45)}))->withTimeout(3),
+      (new InOrder({new DelayCommand(650), intake_sys.OutBackCmd()}))->withTimeout(3),
+    }),
+    new DelayCommand(2950),
+
+    DriveTankRawCmd(0.5, 0.5),
+    new DelayCommand(250),
+    SunroofSolCmd(true),
+    DriveTankRawCmd(-0.45, -0.45),
   };
 
   cc.run();

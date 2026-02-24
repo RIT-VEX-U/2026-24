@@ -135,9 +135,9 @@ SerialLogger logger(vex::PORT12);
  *   0               x
 */
 Pose2d right_auto_pose(19.5, 54, from_degrees(270));
-// Pose2d left_auto_pose(tbd, tbd, from_degrees(tbd));
+Pose2d left_auto_pose(19.5, 86.5, from_degrees(90));
 // Pose2d skills_auto_pose(tbd, tbd, from_degrees(tbd));
-Pose2d &auto_start_pose = right_auto_pose;
+Pose2d &auto_start_pose = left_auto_pose;
 void robot_init() {
  imu.calibrate();
  while (!logger.is_connected()) {
