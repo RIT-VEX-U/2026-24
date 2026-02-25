@@ -114,7 +114,7 @@ void left_auto_path() {
 
     // Matchloader
     intake_sys.MatchLoaderCmd(true),
-    drive_sys.DriveForwardCmd(33, vex::forward, 0.8)->withTimeout(1.5),
+    drive_sys.DriveForwardCmd(32.5, vex::forward, 0.8)->withTimeout(1.5),
     drive_sys.TurnToHeadingCmd(180, .8)->withTimeout(2.25),
     SunroofSolCmd(true),
     intake_sys.AutoLoadCmd(),
@@ -129,10 +129,10 @@ void left_auto_path() {
     intake_sys.FrontPurgeCmd(),
 
     // Long goal (drive to and score)
-    drive_sys.TurnToHeadingCmd(180, 0.8)->withTimeout(.5),
+    drive_sys.TurnToHeadingCmd(181, 0.8)->withTimeout(.5),
     new Parallel({
       (new InOrder({
-        //drive_sys.DriveToPointCmd({43.25, 118.25}, vex::reverse, 0.8, 0.8)->withTimeout(2), 
+        //drive_sys.DriveToPointCmd({43.25, 118}, vex::reverse, 0.8, 0.8)->withTimeout(2), 
         drive_sys.DriveForwardCmd(33, vex::reverse, 0.8, 0.8)->withTimeout(2),
         DriveTankRawCmd(-0.45, -0.45)}))->withTimeout(3),
       (new InOrder({new DelayCommand(650), intake_sys.OutBackCmd()}))->withTimeout(3),
