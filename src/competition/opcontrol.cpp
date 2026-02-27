@@ -34,7 +34,7 @@ void opcontrol() {
     intake_sys.outbottom(7);
   });
   con.ButtonL1.pressed([](){
-    intake_sys.outmiddle(8);
+    intake_sys.outmiddle(9); // Set to 8 for skills
   });
   con.ButtonL2.pressed([](){
     intake_sys.outtop();

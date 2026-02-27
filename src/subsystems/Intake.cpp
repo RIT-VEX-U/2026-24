@@ -128,10 +128,10 @@ void IntakeSys::run_state_machine(bool sorting) {
       break;
 
     case OUTMIDDLE:
-      spin_motor(front_roller, 8, front_jammed);
+      spin_motor(front_roller, v, front_jammed); // Set to 8 for skills
       spin_motor(top_roller, sorting ? -v : v, top_jammed);
       spin_motor(back_roller, v, back_jammed);
-      spin_motor(agitator_roller, -v, false);
+      spin_motor(agitator_roller, -12, false); // Set to -v for skills
       back_score_roller.stop();
       break;
 
