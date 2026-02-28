@@ -114,7 +114,7 @@ void left_auto_path() {
 
     // Matchloader
     intake_sys.MatchLoaderCmd(true),
-    drive_sys.DriveForwardCmd(32.5, vex::forward, 0.8)->withTimeout(1.5),
+    drive_sys.DriveForwardCmd(32.75, vex::forward, 0.8)->withTimeout(1.5),
     drive_sys.TurnToHeadingCmd(180, .8)->withTimeout(2.25),
     SunroofSolCmd(true),
     intake_sys.AutoLoadCmd(),
