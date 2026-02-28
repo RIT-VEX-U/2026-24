@@ -140,7 +140,7 @@ Pose2d left_auto_pose(19.5, 86.5, from_degrees(90));
 Pose2d &auto_start_pose = left_auto_pose;
 void robot_init() {
  imu.calibrate();
- while (!logger.is_connected()) {
+ while (!logger.is_connected() && (vexSystemHighResTimeGet() - init_us) < 5000000) {
    logger.update();
  }
 
