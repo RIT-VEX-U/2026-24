@@ -139,9 +139,9 @@ void left_auto_path() {
     }),
     new DelayCommand(2950),
 
-    DriveTankRawCmd(0.5, 0.5),
+    /*DriveTankRawCmd(0.5, 0.5),
     new DelayCommand(250),
-    SunroofSolCmd(true),
+    SunroofSolCmd(true),*/
     DriveTankRawCmd(-0.45, -0.45),
   };
 
