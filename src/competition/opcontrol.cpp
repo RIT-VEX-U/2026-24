@@ -11,7 +11,7 @@
 
 //#define ARCADE        // Comment for Joe-friendly drive controls.
 #define DEADBAND 0.0  // Deadband for joystick inputs
-
+#define SKILLS        // Comment for driver controls, uncomment for skills
 //#define TESTCODE      // Comment competition-ready drive code.
                       // Uncomment for testing/debug/experimental/tuning/etc code.
 #ifdef TESTCODE
@@ -34,7 +34,13 @@ void opcontrol() {
     intake_sys.outbottom(7);
   });
   con.ButtonL1.pressed([](){
-    intake_sys.outmiddle(9); // Set to 8 for skills
+    intake_sys.outmiddle(
+      #ifdef SKILLS // Set voltage to 8 for skills and 9 for driver
+      8
+      #else
+      9
+      #endif
+    );
   });
   con.ButtonL2.pressed([](){
     intake_sys.outtop();
@@ -52,6 +58,12 @@ void opcontrol() {
     left_wing_solonoid.set(false);
   });
   con.ButtonRight.pressed([](){
+    #ifdef SKILLS // Allow ButtonRight to end matchload macro in skills
+    if(intake_sys.get_intake_state() == IntakeSys::AUTOLOAD) {
+      intake_sys.match_load(false); // Raise matchloader
+      intake_sys.lock_state(false); // Unlock intake state
+    }
+    #endif
     intake_sys.outback();
   });
   con.ButtonUp.pressed([](){
@@ -98,10 +110,17 @@ void opcontrol() {
   #endif
 
   con.ButtonX.pressed([](){
+    #ifdef SKILLS // Hopperreturn in skills, stick in driver
+    intake_sys.hopperreturn();
+    #else
     right_stick_solonoid.set(!right_stick_solonoid.value());
+    #endif
   });
   con.ButtonB.pressed([](){
-    if(!sunroof_lock) sunroof_solonoid.set(!sunroof_solonoid.value());
+    #ifndef SKILLS // Disable sunroof locking in skills
+    if(!sunroof_lock) 
+    #endif
+    sunroof_solonoid.set(!sunroof_solonoid.value());
   });
   con.ButtonY.pressed([](){
     intake_sys.match_load(!intake_sys.is_match_loading());
@@ -110,16 +129,30 @@ void opcontrol() {
     if(intake_sys.get_intake_state() == IntakeSys::AUTOLOAD) {
       intake_sys.match_load(false); // Raise matchloader
       intake_sys.lock_state(false); // Unlock intake state
-      intake_sys.frontpurge();      // Purge
+
+      #ifdef SKILLS // Hopperreturn in skills, purge in driver
+      intake_sys.hopperreturn();
+      #else
+      intake_sys.frontpurge();
+      #endif
     }
     else {
-      sunroof_lock = true;          // Lock sunroof
+      #ifndef SKILLS
+        sunroof_lock = true;          // Lock sunroof
+      #endif
       sunroof_solonoid.set(true);   // Lower sunroof
       intake_sys.match_load(true);  // Lower matchloader
       intake_sys.autoload();        // Automatic Match Load
       intake_sys.lock_state();      // Lock intake state
     }
   });
+
+  #ifdef SKILLS // Start with Matchload Macro (sine matchload solonoid)
+  sunroof_solonoid.set(true);   // Lower sunroof
+  intake_sys.match_load(true);
+  intake_sys.autoload();        // Automatic Match Load
+  intake_sys.lock_state();      // Lock intake state
+  #endif
 
   IntakeSys::IntakeState intake_state = intake_sys.get_intake_state();
   while(true){
@@ -130,15 +163,17 @@ void opcontrol() {
     printf("X: %.2f, Y: %.2f, Rot: %.2f\n", odom.get_position().x(), odom.get_position().y(), odom.get_position().rotation().degrees());
 
     if(!con.ButtonR1.pressing() && !con.ButtonR2.pressing() &&
-      !con.ButtonL1.pressing() && !con.ButtonL2.pressing() && !con.ButtonRight.pressing() && !con.ButtonLeft.pressing() && intake_sys.get_intake_state() != IntakeSys::FRONTPURGE)
+      !con.ButtonL1.pressing() && !con.ButtonL2.pressing() && !con.ButtonRight.pressing() && !con.ButtonLeft.pressing() && intake_sys.get_intake_state() != IntakeSys::FRONTPURGE && intake_sys.get_intake_state() != IntakeSys::HOPPERRETURN)
     {
       intake_sys.intake_stop();
     }
 
+    #ifndef SKILLS // Lock and unlock sunroof in driver, but not in skills
     if(intake_state != IntakeSys::FRONTPURGE && prev_state == IntakeSys::FRONTPURGE) {
       sunroof_lock = false;
       sunroof_solonoid.set(false);
     }
+    #endif
 
     double left;
     double right;

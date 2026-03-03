@@ -38,6 +38,8 @@ void IntakeSys::autoload(double volts) {
   if(state_unlocked) { intake_volts = volts; intake_state = AUTOLOAD; } }
 void IntakeSys::frontpurge(double volts) {
   if(state_unlocked) { intake_volts = volts; intake_state = FRONTPURGE; } }
+void IntakeSys::hopperreturn(double volts) {
+  if(state_unlocked) { intake_volts = volts; intake_state = HOPPERRETURN; } }
 void IntakeSys::intake_stop() { if(state_unlocked) intake_state = STOPPED;  }
 
 void IntakeSys::lock_state(bool lock) {
@@ -128,10 +130,10 @@ void IntakeSys::run_state_machine(bool sorting) {
       break;
 
     case OUTMIDDLE:
-      spin_motor(front_roller, v, front_jammed); // Set to 8 for skills
+      spin_motor(front_roller, v, front_jammed);
       spin_motor(top_roller, sorting ? -v : v, top_jammed);
       spin_motor(back_roller, v, back_jammed);
-      spin_motor(agitator_roller, -12, false); // Set to -v for skills
+      spin_motor(agitator_roller, -4*ceil(v/4.0), false); // -v for skills, -12 for driver
       back_score_roller.stop();
       break;
 
@@ -178,6 +180,14 @@ void IntakeSys::run_state_machine(bool sorting) {
       spin_motor(agitator_roller, v, false);
       back_roller.stop();
       spin_motor(top_roller, -v, top_jammed);
+      spin_motor(back_score_roller, v, back_score_jammed);
+      break;
+
+    case HOPPERRETURN:
+      spin_motor(front_roller, -v*.5, front_jammed);
+      spin_motor(top_roller, v, top_jammed);
+      spin_motor(back_roller, -v, back_jammed);
+      spin_motor(agitator_roller, v, false);
       spin_motor(back_score_roller, v, back_score_jammed);
       break;
   }

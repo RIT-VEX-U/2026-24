@@ -22,7 +22,8 @@ public:
     OUTBOTTOM,
     STOPPED,
     AUTOLOAD,
-    FRONTPURGE
+    FRONTPURGE,
+    HOPPERRETURN
   };
 
   enum BlockColor{
@@ -53,6 +54,7 @@ public:
   void outback(double volts = 12);
   void autoload(double volts = 12);
   void frontpurge(double volts = 12);
+  void hopperreturn(double volts = 12);
   void intake_stop();
 
   void lock_state(bool lock = true);
