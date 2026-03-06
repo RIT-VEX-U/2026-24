@@ -10,7 +10,7 @@
 
 #define LOG 3
 
-void (*autonomous)() = left_auto_path;
+void (*autonomous)() = skills_path;
 
 // --- AutoCommands ---
 
@@ -149,8 +149,9 @@ void left_auto_path() {
 }
 
 void skills_path() {
-  /*odom.set_position({20, 88, from_degrees(90)});
+  printf("Build %d\n", LOG);
   intake_sys.auto_fix_jamming(true);
+
   CommandController cc{
     new Async(new FunctionCommand([]() {
       while (true) {
@@ -162,85 +163,32 @@ void skills_path() {
       }
       return true;
     })),
-    //get first match load
-    drive_sys.DriveToPointCmd({20, 119}, vex::forward, 0.6),
-    drive_sys.TurnToHeadingCmd(180),
-    intake_sys.MatchLoaderCmd(true),
+
+    // Collect cata's preload
+    new DelayCommand(1000),
     intake_sys.IntakeCmd(),
-    drive_sys.DriveForwardCmd(24, vex::forward, 0.4)->withTimeout(2),
-    new DelayCommand(200),
-    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
-    new DelayCommand(200),
-    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
-    new DelayCommand(200),
-    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
-    new DelayCommand(200),
-    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
-    new DelayCommand(200),
-    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
-    new DelayCommand(200),
-    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
-    new DelayCommand(200),
-    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
-    new DelayCommand(200),
-    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
-    new DelayCommand(200),
-    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
-    new DelayCommand(200),
-    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
-    new DelayCommand(200),
-    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
-    new DelayCommand(200),
-    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
-    new DelayCommand(200),
-    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
-    odom.SetPositionCmd({12.5, 119, from_degrees(180)}),
-    new DelayCommand(200),
-    //get second match load
-    intake_sys.IntakeStopCmd(),
-    drive_sys.DriveForwardCmd(16, vex::reverse, 0.6),
-    intake_sys.MatchLoaderCmd(false),
-    drive_sys.TurnToHeadingCmd(270),
-    drive_sys.DriveToPointCmd({40, 26}, vex::forward, 0.6),
-    drive_sys.TurnToHeadingCmd(180),
     intake_sys.MatchLoaderCmd(true),
-    intake_sys.IntakeCmd(),
-    drive_sys.DriveForwardCmd(24, vex::forward, 0.4)->withTimeout(2),
-    new DelayCommand(200),
-    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
-    new DelayCommand(200),
-    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
-    new DelayCommand(200),
-    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
-    new DelayCommand(200),
-    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
-    new DelayCommand(200),
-    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
-    new DelayCommand(200),
-    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
-    new DelayCommand(200),
-    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
-    new DelayCommand(200),
-    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
-    new DelayCommand(200),
-    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
-    new DelayCommand(200),
-    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
-    new DelayCommand(200),
-    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
-    new DelayCommand(200),
-    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
-    new DelayCommand(200),
-    DriveTankRawCmd(0.4, 0.4)->withTimeout(0.2),
-    new DelayCommand(200),
-    odom.SetPositionCmd({11, 26.5, from_degrees(180)}),
-    drive_sys.DriveForwardCmd(10, vex::reverse, 0.6),
-    intake_sys.IntakeStopCmd(),
-    intake_sys.ColorSortCmd(true),
-    drive_sys.TurnToHeadingCmd(0),
-    drive_sys.TurnToPointCmd({43, 23})->withTimeout(2),
-    drive_sys.DriveToPointCmd({43, 23}, vex::forward, 0.6),
-    intake_sys.OutTopCmd(),
+    new DelayCommand(1500),
+
+    // Score preloads
+    drive_sys.DriveForwardCmd(50, vex::reverse, .75),
+    drive_sys.TurnToHeadingCmd(180, .75)->withTimeout(2),
+    DriveTankRawCmd(-.35, -.35), // tune this time
+    intake_sys.OutBackCmd(),
+    new DelayCommand(5000), // tune this time
+
+    // Collect matchloads
+    drive_sys.TurnToHeadingCmd(180, .75)->withTimeout(2),
+    
+      // go to matchloader
+      // pick up blocks so red is on top
+
+    // Score matchloads
+      // score matchload blocks
+
+    // Park
+      // drive to park zone while running intake
   };
-  cc.run();*/
+
+  cc.run();
 }
