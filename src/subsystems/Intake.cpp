@@ -87,7 +87,6 @@ void IntakeSys::spin_motor(vex::motor &motor, double volts, bool jammed) {
 // ==================== Motor Behavior ====================
 
 void IntakeSys::run_state_machine(bool sorting) {
-  static BlockColor autoload_prefer = BlockColor::NOTHING;
   double v = intake_volts;
   bool front_jammed = motor_jammed(front_roller);
   bool top_jammed = motor_jammed(top_roller);

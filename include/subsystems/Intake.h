@@ -84,6 +84,7 @@ public:
 
   void match_load(bool do_match_load);
   bool is_match_loading();
+  BlockColor autoload_prefer = BlockColor::NOTHING;
 
 private:
   // Here lied shitty_timer. RIP
