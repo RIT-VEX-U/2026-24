@@ -297,6 +297,34 @@ private:
   double end_speed;
 };
 
+class FollowTrajectoryCommand : public AutoCommand {
+public:
+  FollowTrajectoryCommand(TankDrive &drive_sys, const Trajectory &trajectory, const TankTrajectoryFollowerConfig &cfg);
+
+  bool run() override;
+  std::string toString() override;
+  void on_timeout() override;
+
+private:
+  TankDrive &drive_sys;
+  const Trajectory *trajectory;
+  TankTrajectoryFollowerConfig cfg;
+};
+
+class FollowTrajectoryOpenLoopCommand : public AutoCommand {
+public:
+  FollowTrajectoryOpenLoopCommand(TankDrive &drive_sys, const Trajectory &trajectory, bool stop_at_end);
+
+  bool run() override;
+  std::string toString() override;
+  void on_timeout() override;
+
+private:
+  TankDrive &drive_sys;
+  const Trajectory *trajectory;
+  bool stop_at_end;
+};
+
 /**
  * AutoCommand wrapper class for the stop() function in the
  * TankDrive class

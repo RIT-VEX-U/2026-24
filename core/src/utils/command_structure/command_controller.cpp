@@ -64,12 +64,13 @@ void CommandController::add_cancel_func(std::function<bool(void)> true_if_cancel
  * Execute and remove commands in FIFO order
  */
 void CommandController::run() {
+    constexpr int kLoopDelayMs = 10;
     AutoCommand *next_cmd;
     printf("Running Auto. Commands 1 to %d\n", command_queue.size());
     fflush(stdout);
     int command_count = 1;
-    //vex::timer tmr;
-    uint64_t start_us = vexSystemHighResTimeGet();
+    vex::timer tmr;
+    tmr.reset();
 
     while (!command_queue.empty()) {
         // retrieve and remove command at the front of the queue
@@ -93,21 +94,17 @@ void CommandController::run() {
 
         // run the current command until it returns true or we timeout
         while (!next_cmd->run()) {
-            vexDelay(5);
-
-            if (!doTimeout) {
-                continue;
+            if (doTimeout) {
+                // If we do want to check for timeout, check and end the command if
+                // we should.
+                double cmd_elapsed_sec = ((double)timeout_timer.time()) / 1000.0;
+                if (cmd_elapsed_sec > next_cmd->timeout_seconds || should_cancel()) {
+                    next_cmd->on_timeout();
+                    command_timed_out = true;
+                    break;
+                }
             }
-
-            // If we do want to check for timeout, check and end the command if
-            // we should
-            double cmd_elapsed_sec = ((double)timeout_timer.time()) / 1000.0;
-            if (cmd_elapsed_sec > next_cmd->timeout_seconds || should_cancel()) {
-                next_cmd->on_timeout();
-                command_timed_out = true;
-                break;
-            }
-            vexDelay(20);
+            vexDelay(kLoopDelayMs);
         }
         if (should_cancel()) {
             printf("Cancelling");
@@ -118,7 +115,7 @@ void CommandController::run() {
         fflush(stdout);
         command_count++;
     }
-    printf("Finished commands in %f seconds\n", (vexSystemHighResTimeGet() - start_us)/1000000.0 /*tmr.time(vex::sec)*/);
+    printf("Finished commands in %f seconds\n", tmr.time(vex::sec));
 }
 
 std::string CommandController::toString() {

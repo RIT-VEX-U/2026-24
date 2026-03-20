@@ -3,10 +3,8 @@
 #include "core/utils/geometry.h"
 #include "core/utils/math/geometry/pose2d.h"
 #include "core/utils/math/geometry/translation2d.h"
-#include "vex.h"
+#include "core/utils/math/spline/hermite_point.h"
 #include <vector>
-
-using namespace vex;
 
 namespace PurePursuit {
 /**
@@ -41,30 +39,6 @@ class Path {
     double radius;
     bool valid;
 };
-/**
- * Represents a piece of a cubic spline with s(x) = a(x-xi)^3 + b(x-xi)^2 + c(x-xi) + d
- * The x_start and x_end shows where the equation is valid.
- */
-struct spline {
-    double a, b, c, d, x_start, x_end;
-
-    double getY(double x) { return a * pow((x - x_start), 3) + b * pow((x - x_start), 2) + c * (x - x_start) + d; }
-};
-/**
- * a position along the hermite path
- * contains a position and orientation information that the robot would be at at this point
- */
-struct hermite_point {
-    double x;
-    double y;
-    double dir;
-    double mag;
-
-    Translation2d getPoint() const { return Translation2d(x, y); }
-
-    Translation2d getTangent() const { return Translation2d(mag, Rotation2d(dir)); }
-};
-
 /**
  * Returns points of the intersections of a line segment and a circle. The line
  * segment is defined by two points, and the circle is defined by a center and radius.
@@ -105,7 +79,7 @@ extern std::vector<Translation2d> smooth_path_cubic(const std::vector<Translatio
  * @param steps The number of points interpolated between points.
  * @return The smoothed path.
  */
-extern std::vector<Translation2d> smooth_path_hermite(const std::vector<hermite_point> &path, double step);
+extern std::vector<Translation2d> smooth_path_hermite(const std::vector<HermitePoint> &path, double step);
 
 /**
  * Estimates the remaining distance from the robot's position to the end,

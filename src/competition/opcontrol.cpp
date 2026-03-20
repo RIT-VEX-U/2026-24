@@ -7,11 +7,13 @@
 #include "robot-config.h"
 #include "competition/autonomous.h"
 #include <cstdio>
-#include <vex_global.h>
+#include "core/utils/trajectory/trajectory.h"
+#include "core/utils/trajectory/constraints/centripetal_acceleration_constraint.h"
+#include "core/utils/trajectory/constraints/tank_voltage_constraint.h"
 
-//#define ARCADE        // Comment for Joe-friendly drive controls.
+// #define ARCADE        // Comment for Joe-friendly drive controls.
 #define DEADBAND 0.0  // Deadband for joystick inputs
-#define SKILLS        // Comment for driver controls, uncomment for skills
+// #define SKILLS        // Comment for driver controls, uncomment for skills
 //#define TESTCODE      // Comment competition-ready drive code.
                       // Uncomment for testing/debug/experimental/tuning/etc code.
 #ifdef TESTCODE
@@ -21,6 +23,31 @@ void PID_Tuning();
 bool enable_drive = true;
 bool sunroof_lock = false;
 
+Trajectory make_example_curveo() {
+  
+
+  constexpr double radius = 24.0;
+  constexpr double cx = 71.25;
+  constexpr double cy = 71.0;
+  constexpr double tangent_mag = 56;
+
+  std::vector<HermitePoint> points = {
+    HermitePoint::from_heading(cx, cy + radius, 0.0, tangent_mag),
+    HermitePoint::from_heading(cx + radius, cy, -M_PI_2, tangent_mag),
+    HermitePoint::from_heading(cx, cy - radius, M_PI, tangent_mag),
+    HermitePoint::from_heading(cx - radius, cy, M_PI_2, tangent_mag),
+    HermitePoint::from_heading(cx, cy + radius, 0.0, tangent_mag),
+  };
+
+  TrajectoryConfig config(60.000_inps, 60.000_inps2);
+  config.set_start_velocity(0.000_inps);
+  config.set_end_velocity(0.000_inps);
+  config.set_reversed(false);
+  config.set_track_width(11.8_in);
+  config.add_constraint(CentripetalAccelerationConstraint(90.000_inps2));
+  config.add_constraint(TankVoltageConstraint(0.189_VpInPs, 0.0416_VpInPs2, 12.000_V, 12.000_in));
+  return TrajectoryGenerator::generate_trajectory(points, config);
+}
 
 
 
@@ -108,14 +135,23 @@ void opcontrol() {
     enable_drive = true;
   });
   #endif
-
-  con.ButtonX.pressed([](){
-    #ifdef SKILLS // Hopperreturn in skills, stick in driver
-    intake_sys.hopperreturn();
-    #else
-    right_stick_solonoid.set(!right_stick_solonoid.value());
-    #endif
-  });
+    con.ButtonX.pressed([]() {
+        enable_drive = false;
+        CommandController cc{
+          drive_sys.FollowTrajectoryCmd(make_example_curveo(), trajectory_follower_config),
+        };
+        cc.run();
+        enable_drive = true;
+    });
+  // con.ButtonX.pressed([](){
+  //   #ifdef SKILLS // Hopperreturn in skills, stick in driver
+  //   intake_sys.hopperreturn();
+  //   #else
+  //   // right_stick_solonoid.set(!right_stick_solonoid.value());
+  //
+  //
+  //   #endif
+  // });
   con.ButtonB.pressed([](){
     #ifndef SKILLS // Disable sunroof locking in skills
     if(!sunroof_lock) 
@@ -160,7 +196,7 @@ void opcontrol() {
     IntakeSys::IntakeState prev_state = intake_state;
     intake_state = intake_sys.get_intake_state();
 
-    printf("X: %.2f, Y: %.2f, Rot: %.2f\n", odom.get_position().x(), odom.get_position().y(), odom.get_position().rotation().degrees());
+    // printf("X: %.2f, Y: %.2f, Rot: %.2f\n", odom.get_position().x(), odom.get_position().y(), odom.get_position().rotation().degrees());
 
     if(!con.ButtonR1.pressing() && !con.ButtonR2.pressing() &&
       !con.ButtonL1.pressing() && !con.ButtonL2.pressing() && !con.ButtonRight.pressing() && !con.ButtonLeft.pressing() && intake_sys.get_intake_state() != IntakeSys::FRONTPURGE && intake_sys.get_intake_state() != IntakeSys::HOPPERRETURN)

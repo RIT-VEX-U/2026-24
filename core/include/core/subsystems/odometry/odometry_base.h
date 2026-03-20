@@ -114,7 +114,7 @@ class OdometryBase {
     /**
      * handle to the vex task that is running the odometry code
      */
-    vex::task *handle;
+    vex::task *handle = nullptr;
 
     /**
      * Mutex to control multithreading

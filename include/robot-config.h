@@ -29,6 +29,10 @@ extern vex::motor_group left_motors;
 extern vex::motor_group right_motors;
 extern vex::inertial imu;
 extern bool DRIVE_FINISHED_FLAG;
+extern TankDriveModel drive_model;
+extern TankDriveObserver drive_observer;
+extern TankTrajectoryFollowerConfig trajectory_follower_config;
+extern TankTrajectoryFollowerConfig line_cfg;
 extern uint64_t init_us;
 
 extern SerialLogger logger;

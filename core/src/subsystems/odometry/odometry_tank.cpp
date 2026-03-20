@@ -54,10 +54,7 @@ OdometryTank::OdometryTank(
  *
  */
 void OdometryTank::set_position(const Pose2d &newpos) {
-    mut.lock();
     rotation_offset = newpos.rotation().degrees() - (current_pos.rotation().degrees() - rotation_offset);
-    mut.unlock();
-
     OdometryBase::set_position(newpos);
 }
 
@@ -80,7 +77,7 @@ Pose2d OdometryTank::update() {
     }
 
     double angle = 0;
-    if (!imu->installed()) {
+    if (imu != NULL && !imu->installed()) {
         // printf("NO IMU DETECTED\n");
     }
     // If the IMU data was passed in, use it for rotational data

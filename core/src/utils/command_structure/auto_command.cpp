@@ -1,4 +1,5 @@
 #include "core/utils/command_structure/auto_command.h"
+#include "core/utils/formatting.h"
 
 class OrCondition : public Condition {
   public:
@@ -118,7 +119,7 @@ static int parallel_runner(void *arg) {
         delete (*ri->runners)[ri->index];
         (*ri->runners)[ri->index] = nullptr;
     }
-    return 0;
+    return 1;
 }
 
 // wait for all to finish
@@ -147,7 +148,7 @@ bool Parallel::run() {
     return all_finished;
 }
 
-std::string Parallel::toString() { return double_to_string(runners.size()) + " commands running in parallel"; }
+std::string Parallel::toString() { return int_to_string(runners.size()) + " commands running in parallel"; }
 
 void Parallel::on_timeout() {
     for (int i = 0; i < runners.size(); i++) {
@@ -179,7 +180,6 @@ Branch::~Branch() {
 bool Branch::run() {
     if (!chosen) {
         choice = cond->test();
-        printf("Chosen %s\n", (choice) ? "TRUE" : "FALSE");
         chosen = true;
         tmr.reset();
     }

@@ -1,17 +1,86 @@
 #include "core/subsystems/tank_drive.h"
+#include <v5_apiuser.h>
 #include "core/utils/command_structure/drive_commands.h"
 #include "core/utils/controls/pidff.h"
+#include "core/utils/controls/state_space/linear_plant_inversion_feedforward.h"
 #include "core/utils/geometry.h"
 #include "core/utils/math/geometry/rotation2d.h"
 #include "core/utils/math_util.h"
-#include <vex_units.h>
 
-TankDrive::TankDrive(motor_group &left_motors, motor_group &right_motors, robot_specs_t &config, OdometryBase *odom, SerialLogger *logger)
+extern uint64_t init_us;
+
+namespace {
+
+void print_trajectory_base_csv(const Trajectory &trajectory) {
+    printf("idx,t,s,x,y,heading_deg,curvature,velocity,acceleration,omega\n");
+
+    double s = 0.0;
+    const std::vector<Trajectory::State> &states = trajectory.states();
+    for (size_t i = 0; i < states.size(); ++i) {
+        if (i > 0) {
+            s += states[i - 1].pose.translation().distance(states[i].pose.translation());
+        }
+
+        const AngularVelocity omega = states[i].velocity * states[i].curvature;
+        printf(
+          "%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n",
+          i,
+          states[i].t.s(),
+          s,
+          states[i].pose.x(),
+          states[i].pose.y(),
+          states[i].pose.rotation().wrapped_degrees_360(),
+          states[i].curvature.radpm(),
+          states[i].velocity.inps(),
+          states[i].acceleration.inps2(),
+          omega.radps());
+        vexDelay(1);
+    }
+    printf("\n\n\n");
+
+    printf("idx,t,x,y,heading_deg,velocity,omega,left_voltage,right_voltage\n");
+    fflush(stdout);
+}
+
+void print_trajectory_runtime_row(
+  int row,
+  double t,
+  const Pose2d &pose,
+  double velocity,
+  double omega,
+  double left_voltage,
+  double right_voltage) {
+    printf(
+      "%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n",
+      row,
+      t,
+      pose.x(),
+      pose.y(),
+      pose.rotation().wrapped_degrees_360(),
+      velocity,
+      omega,
+      left_voltage,
+      right_voltage);
+    fflush(stdout);
+}
+
+}  // namespace
+
+TankDrive::TankDrive(
+  motor_group &left_motors,
+  motor_group &right_motors,
+  robot_specs_t &config,
+  OdometryBase *odom,
+  SerialLogger *logger,
+  TankDriveModel *drive_model,
+  TankDriveObserver *observer)
     : left_motors(left_motors), right_motors(right_motors), odometry(odom), correction_pid(config.correction_pid), 
-      config(config), logger(logger) {
+      config(config), logger(logger), drive_model(drive_model), drive_observer(observer) {
     drive_default_feedback = config.drive_feedback;
     turn_default_feedback = config.turn_feedback;
 }
+
+TankDrive::~TankDrive() { reset_auto(); }
 
 AutoCommand *
 TankDrive::DriveToPointCmd(Feedback &fb, Translation2d pt, vex::directionType dir, double max_speed, double end_speed) {
@@ -78,6 +147,13 @@ AutoCommand *TankDrive::PurePursuitCmd(
 ) {
     return new PurePursuitCommand(*this, feedback, path, dir, max_speed, end_speed);
 }
+AutoCommand *TankDrive::FollowTrajectoryCmd(const Trajectory &trajectory, const TankTrajectoryFollowerConfig &cfg) {
+    return new FollowTrajectoryCommand(*this, trajectory, cfg);
+}
+
+AutoCommand *TankDrive::FollowTrajectoryOpenLoopCmd(const Trajectory &trajectory, bool stop_at_end) {
+    return new FollowTrajectoryOpenLoopCommand(*this, trajectory, stop_at_end);
+}
 
 Condition *TankDrive::DriveStalledCondition(double stall_time) {
     class DriveStalledCondition : public Condition {
@@ -122,12 +198,24 @@ AutoCommand *TankDrive::DriveTankCmd(double left, double right) {
 /**
  * Reset the initialization for autonomous drive functions
  */
-void TankDrive::reset_auto() { func_initialized = false; }
+void TankDrive::reset_auto() {
+    trajectory_settle_checking = false;
+    trajectory_settle_start = 0.0;
+    trajectory_print_row = 0;
+    func_initialized = false;
+    delete trajectory_controller;
+    trajectory_controller = NULL;
+}
 
 /**
  * Stops rotation of all the motors using their "brake mode"
  */
 void TankDrive::stop() {
+    if (drive_observer != NULL) {
+        drive_observer->set_input_voltages(
+          units::Voltage::from<units::volt_tag>(0.0),
+          units::Voltage::from<units::volt_tag>(0.0));
+    }
     left_motors.stop();
     right_motors.stop();
 }
@@ -138,8 +226,171 @@ void TankDrive::stop() {
 Pose2d TankDrive::get_position() { return this->odometry->get_position(); }
 
 void TankDrive::drive_tank_raw(double left_norm, double right_norm) {
-    left_motors.spin(directionType::fwd, left_norm * 12, voltageUnits::volt);
-    right_motors.spin(directionType::fwd, right_norm * 12, voltageUnits::volt);
+    drive_tank_voltage(left_norm * 12.0, right_norm * 12.0);
+}
+
+void TankDrive::drive_tank_voltage(double left_volts, double right_volts) {
+    if (left_volts > 12.0) {
+        left_volts = 12.0;
+    } else if (left_volts < -12.0) {
+        left_volts = -12.0;
+    }
+    if (right_volts > 12.0) {
+        right_volts = 12.0;
+    } else if (right_volts < -12.0) {
+        right_volts = -12.0;
+    }
+
+    if (drive_observer != NULL) {
+        drive_observer->set_input_voltages(
+          units::Voltage::from<units::volt_tag>(left_volts),
+          units::Voltage::from<units::volt_tag>(right_volts));
+    }
+
+    left_motors.spin(directionType::fwd, left_volts, voltageUnits::volt);
+    right_motors.spin(directionType::fwd, right_volts, voltageUnits::volt);
+}
+
+double TankDrive::raw_left_position() const {
+    return (left_motors.position(vex::rotationUnits::rev) / config.odom_gear_ratio) * PI * config.odom_wheel_diam;
+}
+
+double TankDrive::raw_right_position() const {
+    return (right_motors.position(vex::rotationUnits::rev) / config.odom_gear_ratio) * PI * config.odom_wheel_diam;
+}
+
+double TankDrive::raw_left_velocity() const {
+    return (left_motors.velocity(vex::velocityUnits::rpm) / 60.0 / config.odom_gear_ratio) * PI * config.odom_wheel_diam;
+}
+
+double TankDrive::raw_right_velocity() const {
+    return (right_motors.velocity(vex::velocityUnits::rpm) / 60.0 / config.odom_gear_ratio) * PI * config.odom_wheel_diam;
+}
+
+Velocity TankDrive::max_linear_velocity() const {
+    if (drive_model == NULL) {
+        return 0_inps;
+    }
+
+    TankDriveModel::Plant plant = drive_model->chassis_plant();
+    const EVec<2> u{drive_model->max_voltage().V(), drive_model->max_voltage().V()};
+    const EVec<2> x_ss = (-plant.A()).lu().solve(plant.B() * u);
+    return Velocity::from<inches_per_second_tag>(std::max(0.0, std::abs(x_ss(0))));
+}
+
+Velocity TankDrive::forward_back_input_to_linear_velocity(double forward_back) const {
+    if (forward_back > 1.0) {
+        forward_back = 1.0;
+    } else if (forward_back < -1.0) {
+        forward_back = -1.0;
+    }
+
+    return max_linear_velocity() * forward_back;
+}
+
+Voltage TankDrive::forward_back_input_to_common_mode_voltage(double forward_back) const {
+    if (forward_back > 1.0) {
+        forward_back = 1.0;
+    } else if (forward_back < -1.0) {
+        forward_back = -1.0;
+    }
+
+    if (drive_model == NULL) {
+        return Voltage::from<volt_tag>(12.0 * forward_back);
+    }
+
+    const Velocity target_velocity = forward_back_input_to_linear_velocity(forward_back);
+    return Voltage::from<volt_tag>(drive_model->kV_linear().VpInps() * target_velocity.inps());
+}
+
+void TankDrive::drive_line(
+  double forward_back,
+  const Translation2d &line_point,
+  const Rotation2d &line_heading,
+  const TankTrajectoryFollowerConfig &cfg) {
+    if (odometry == NULL) {
+        fprintf(stderr, "Odometry is NULL. Unable to run drive_line()\n");
+        fflush(stderr);
+        return;
+    }
+    if (drive_model == NULL) {
+        fprintf(stderr, "TankDriveModel is NULL. Unable to run drive_line()\n");
+        fflush(stderr);
+        return;
+    }
+
+    if (!func_initialized) {
+        delete trajectory_controller;
+        trajectory_controller = NULL;
+
+        TankDriveModel::Plant plant = drive_model->wheel_plant();
+        trajectory_controller = new LTVDifferentialDriveController(
+          plant,
+          drive_model->trackwidth(),
+          cfg.q_tolerances_eigen(),
+          cfg.r_tolerances_eigen(),
+          cfg.dt,
+          cfg.max_velocity,
+          cfg.velocity_step);
+        func_initialized = true;
+    }
+
+    const Pose2d current_pose = odometry->get_position();
+    const Translation2d current_translation = current_pose.translation();
+    const Translation2d line_direction(line_heading.f_cos(), line_heading.f_sin());
+    const Translation2d line_offset = current_translation - line_point;
+    const Translation2d projected_point = line_point + line_direction * (line_offset * line_direction);
+    const Pose2d pose_ref(projected_point.x(), projected_point.y(), line_heading);
+
+    const Velocity line_velocity_ref = forward_back_input_to_linear_velocity(forward_back * 0.6);
+    const TankDriveModel::StateVector wheel_ref = drive_model->chassis_to_wheels(line_velocity_ref, 0_radps);
+
+    TankDriveModel::Plant plant = drive_model->wheel_plant();
+    LinearPlantInversionFeedforward<2, 2> feedforward(plant, cfg.dt.s());
+    const EVec<2> ff = feedforward.calculate(wheel_ref, wheel_ref, cfg.dt.s());
+
+    const double observer_left_vel = get_left_velocity();
+    const double observer_right_vel = get_right_velocity();
+    DifferentialDriveWheelVoltages volts = trajectory_controller->calculate(
+      current_pose,
+      Velocity::from<inches_per_second_tag>(observer_left_vel),
+      Velocity::from<inches_per_second_tag>(observer_right_vel),
+      pose_ref,
+      Velocity::from<inches_per_second_tag>(wheel_ref(0)),
+      Velocity::from<inches_per_second_tag>(wheel_ref(1)));
+
+    const double max_voltage = drive_model->max_voltage().V();
+    const double commanded_left = clamp(ff(0) + volts.left.V(), -max_voltage, max_voltage);
+    const double commanded_right = clamp(ff(1) + volts.right.V(), -max_voltage, max_voltage);
+    drive_tank_voltage(commanded_left, commanded_right);
+}
+
+double TankDrive::get_left_position() {
+    if (drive_observer == NULL || !drive_observer->initialized()) {
+        return raw_left_position();
+    }
+    return drive_observer->left_position().in();
+}
+
+double TankDrive::get_right_position() {
+    if (drive_observer == NULL || !drive_observer->initialized()) {
+        return raw_right_position();
+    }
+    return drive_observer->right_position().in();
+}
+
+double TankDrive::get_left_velocity() {
+    if (drive_observer == NULL || !drive_observer->initialized()) {
+        return raw_left_velocity();
+    }
+    return drive_observer->left_velocity().inps();
+}
+
+double TankDrive::get_right_velocity() {
+    if (drive_observer == NULL || !drive_observer->initialized()) {
+        return raw_right_velocity();
+    }
+    return drive_observer->right_velocity().inps();
 }
 /**
  * Drive the robot using differential style controls. left_motors controls the
@@ -490,14 +741,6 @@ bool TankDrive::drive_to_point(
     return false;
 }
 
-// bool TankDrive::pivot_to_angle(double x, double y, double r, Feedback &feedback, vex::directionType dir = vex::forward, bool counterclockwise = true, double max_speed = 1) {
-//     if (odometry == NULL) {
-//         fprintf(stderr, "Odometry is NULL. Unable to run pivot_to_angle()\n");
-//         fflush(stderr);
-//         return true;
-//     }
-// }
-
 /**
  * Use odometry to automatically drive the robot to a point on the field.
  * X and Y is the final point we want the robot.
@@ -762,6 +1005,198 @@ bool TankDrive::turn_to_heading(double heading_deg, double max_speed, double end
     return true;
 }
 
+bool TankDrive::follow_trajectory(const Trajectory &trajectory, const TankTrajectoryFollowerConfig &cfg) {
+    constexpr double kTrajectoryOnTargetTime = 0.1;
+
+    if (odometry == NULL) {
+        fprintf(stderr, "Odometry is NULL. Unable to run follow_trajectory()\n");
+        fflush(stderr);
+        return true;
+    }
+    if (drive_model == NULL) {
+        fprintf(stderr, "TankDriveModel is NULL. Unable to run follow_trajectory()\n");
+        fflush(stderr);
+        return true;
+    }
+    if (trajectory.empty()) {
+        return true;
+    }
+
+    if (!func_initialized) {
+        delete trajectory_controller;
+        trajectory_controller = NULL;
+
+        TankDriveModel::Plant plant = drive_model->wheel_plant();
+        const EVec<5> q_tolerances = cfg.q_tolerances_eigen();
+        const EVec<2> r_tolerances = cfg.r_tolerances_eigen();
+        trajectory_controller = new LTVDifferentialDriveController(
+          plant,
+          drive_model->trackwidth(),
+          q_tolerances,
+          r_tolerances,
+          cfg.dt,
+          cfg.max_velocity,
+          cfg.velocity_step);
+        trajectory_settle_checking = false;
+        trajectory_settle_start = 0.0;
+        trajectory_print_row = 0;
+        // print_trajectory_base_csv(trajectory);
+        if (logger != NULL) {
+            logger->define_and_send_schema(0x05, "time:u64, x:f32, y:f32, t:f32");
+        }
+        trajectory_timer.reset();
+        func_initialized = true;
+    }
+
+    const Time elapsed = Time::from<second_tag>(trajectory_timer.time(sec));
+    const Time next_t = min(elapsed + cfg.dt, trajectory.total_time());
+    const double dt_step = (next_t - elapsed).s();
+    const Trajectory::State ref = trajectory.sample(elapsed);
+    const Trajectory::State next_ref = trajectory.sample(next_t);
+
+    const AngularVelocity ref_omega = ref.velocity * ref.curvature;
+    const AngularVelocity next_ref_omega = next_ref.velocity * next_ref.curvature;
+    const TankDriveModel::StateVector wheel_ref = drive_model->chassis_to_wheels(ref.velocity, ref_omega);
+    const TankDriveModel::StateVector next_wheel_ref = drive_model->chassis_to_wheels(next_ref.velocity, next_ref_omega);
+
+    TankDriveModel::Plant plant = drive_model->wheel_plant();
+    LinearPlantInversionFeedforward<2, 2> feedforward(plant, cfg.dt.s());
+    const EVec<2> ff = feedforward.calculate(wheel_ref, next_wheel_ref, dt_step);
+
+    const Pose2d current_pose = odometry->get_position();
+    const double observer_left_vel = get_left_velocity();
+    const double observer_right_vel = get_right_velocity();
+    const TankDriveModel::StateVector chassis_state = drive_model->wheels_to_chassis(observer_left_vel, observer_right_vel);
+
+    DifferentialDriveWheelVoltages volts = trajectory_controller->calculate(
+      current_pose,
+      Velocity::from<inches_per_second_tag>(observer_left_vel),
+      Velocity::from<inches_per_second_tag>(observer_right_vel),
+      ref.pose,
+      Velocity::from<inches_per_second_tag>(wheel_ref(0)),
+      Velocity::from<inches_per_second_tag>(wheel_ref(1)));
+
+    const double max_voltage = drive_model->max_voltage().V();
+    const double commanded_left = clamp(ff(0) + volts.left.V(), -max_voltage, max_voltage);
+    const double commanded_right = clamp(ff(1) + volts.right.V(), -max_voltage, max_voltage);
+
+    if (logger != NULL) {
+        logger->build(0x05)
+          .add(vexSystemHighResTimeGet() - init_us)
+          .add((float)ref.pose.x())
+          .add((float)ref.pose.y())
+          .add((float)ref.pose.rotation().wrapped_degrees_360())
+          .send();
+    }
+
+    print_trajectory_runtime_row(
+      trajectory_print_row++,
+      elapsed.s(),
+      current_pose,
+      chassis_state(0),
+      chassis_state(1),
+      commanded_left,
+      commanded_right);
+
+    drive_tank_voltage(commanded_left, commanded_right);
+
+    if (elapsed >= trajectory.total_time()) {
+        const bool at_reference = trajectory_controller->at_reference();
+        const bool settle_window_expired =
+          elapsed >= trajectory.total_time() + Time::from<second_tag>(kTrajectoryOnTargetTime);
+
+        if (at_reference) {
+            if (!trajectory_settle_checking) {
+                trajectory_settle_checking = true;
+                trajectory_settle_start = elapsed.s();
+            }
+        } else {
+            trajectory_settle_checking = false;
+        }
+
+        if (settle_window_expired ||
+            (trajectory_settle_checking && (elapsed.s() - trajectory_settle_start) >= kTrajectoryOnTargetTime)) {
+            if (cfg.stop_at_end) {
+                stop();
+            }
+            reset_auto();
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool TankDrive::follow_trajectory_open_loop(const Trajectory &trajectory, bool stop_at_end) {
+    if (drive_model == NULL) {
+        fprintf(stderr, "TankDriveModel is NULL. Unable to run follow_trajectory_open_loop()\n");
+        fflush(stderr);
+        return true;
+    }
+    if (trajectory.empty()) {
+        return true;
+    }
+
+    if (!func_initialized) {
+        trajectory_timer.reset();
+        trajectory_print_row = 0;
+        print_trajectory_base_csv(trajectory);
+        if (logger != NULL) {
+            logger->define_and_send_schema(0x05, "time:u64, x:f32, y:f32, t:f32");
+        }
+        func_initialized = true;
+    }
+
+    const Time elapsed = Time::from<second_tag>(trajectory_timer.time(sec));
+    const Time next_t = min(elapsed + 0.01_s, trajectory.total_time());
+    const double dt_step = (next_t - elapsed).s();
+    const Trajectory::State ref = trajectory.sample(elapsed);
+    const Trajectory::State next_ref = trajectory.sample(next_t);
+
+    const AngularVelocity ref_omega = ref.velocity * ref.curvature;
+    const AngularVelocity next_ref_omega = next_ref.velocity * next_ref.curvature;
+    const TankDriveModel::StateVector wheel_ref = drive_model->chassis_to_wheels(ref.velocity, ref_omega);
+    const TankDriveModel::StateVector next_wheel_ref = drive_model->chassis_to_wheels(next_ref.velocity, next_ref_omega);
+    const Pose2d current_pose = odometry != NULL ? odometry->get_position() : Pose2d{};
+    const double observer_left_vel = get_left_velocity();
+    const double observer_right_vel = get_right_velocity();
+    const TankDriveModel::StateVector chassis_state = drive_model->wheels_to_chassis(observer_left_vel, observer_right_vel);
+
+    TankDriveModel::Plant plant = drive_model->wheel_plant();
+    LinearPlantInversionFeedforward<2, 2> feedforward(plant, 0.01);
+    const EVec<2> ff = feedforward.calculate(wheel_ref, next_wheel_ref, dt_step);
+
+    if (logger != NULL) {
+        logger->build(0x05)
+          .add(vexSystemHighResTimeGet() - init_us)
+          .add((float)ref.pose.x())
+          .add((float)ref.pose.y())
+          .add((float)ref.pose.rotation().wrapped_degrees_360())
+          .send();
+    }
+
+    print_trajectory_runtime_row(
+      trajectory_print_row++,
+      elapsed.s(),
+      current_pose,
+      chassis_state(0),
+      chassis_state(1),
+      ff(0),
+      ff(1));
+
+    drive_tank_voltage(ff(0), ff(1));
+
+    if (elapsed >= trajectory.total_time()) {
+        if (stop_at_end) {
+            stop();
+        }
+        reset_auto();
+        return true;
+    }
+
+    return false;
+}
+
 /**
  * Modify the inputs from the controller by squaring / cubing, etc
  * Allows for better control of the robot at slower speeds
@@ -798,7 +1233,7 @@ bool TankDrive::pure_pursuit(
 
     if (logger != NULL) {
         logger_schema_init = [this] {
-            logger->define_and_send_schema(0x05, "pathid:u16,x:f32,y:f32");
+            logger->define_and_send_schema(0x06, "pathid:u16,x:f32,y:f32");
             return true;
         }();
     }
@@ -813,7 +1248,7 @@ bool TankDrive::pure_pursuit(
 
         if (logger != NULL && logger_schema_init) {
             for (int i = 0; i < points.size(); i++) {
-                logger->build(0x05)
+                logger->build(0x06)
                   .add((uint16_t)id)
                   .add((float)points[i].x())
                   .add((float)points[i].y())

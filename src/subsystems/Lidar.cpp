@@ -101,7 +101,7 @@ namespace lidar_ukf {
     }
     
     UnscentedKalmanFilter<3, 3, 2> createUKF() {
-        EVec<3> state_stddevs{2.0, 2.0, 0.0000001};
+        EVec<3> state_stddevs{2.0, 2.0, 0.00001};
         
         EVec<2> measurement_stddevs{30, 30};
         
@@ -114,8 +114,24 @@ namespace lidar_ukf {
     }
 }
 
-LidarReceiver::LidarReceiver(int port, int baudrate, vex::inertial *imu, vex::motor_group *left_motors, vex::motor_group *right_motors, robot_specs_t *config, SerialLogger *logger) 
-    : COBSSerialDevice(port, baudrate), imu(imu), left_motors(left_motors), right_motors(right_motors), config(config), logger(logger), running_(false), ukf_(lidar_ukf::createUKF()) {
+LidarReceiver::LidarReceiver(
+  int port,
+  int baudrate,
+  vex::inertial *imu,
+  vex::motor_group *left_motors,
+  vex::motor_group *right_motors,
+  robot_specs_t *config,
+  SerialLogger *logger,
+  TankDriveObserver *drive_observer)
+    : COBSSerialDevice(port, baudrate),
+      imu(imu),
+      left_motors(left_motors),
+      right_motors(right_motors),
+      config(config),
+      logger(logger),
+      drive_observer(drive_observer),
+      running_(false),
+      ukf_(lidar_ukf::createUKF()) {
     // start at center
     EVec<3> initial_state{72, 72, 0};
     ukf_.set_xhat(initial_state);
@@ -123,7 +139,7 @@ LidarReceiver::LidarReceiver(int port, int baudrate, vex::inertial *imu, vex::mo
     // high trust of angle
     EMat<3, 3> initialP{{2, 0, 0},
                         {0, 2, 0},
-                        {0, 0, 0.00025}};
+                        {0, 0, 1}};
     ukf_.set_P(initialP);
 }
 
@@ -167,12 +183,49 @@ void LidarReceiver::reset_ukf(const Pose2d& initial_pose) {
 }
 
 EVec<3> LidarReceiver::get_robot_velocity() {
-    double left_rpm = left_motors->velocity(vex::velocityUnits::rpm);
-    double right_rpm = right_motors->velocity(vex::velocityUnits::rpm);
-    
-    double wheel_circumference = M_PI * config->odom_wheel_diam;
-    double left_vel = (left_rpm / 60.0) * wheel_circumference / config->odom_gear_ratio;
-    double right_vel = (right_rpm / 60.0) * wheel_circumference / config->odom_gear_ratio;
+    const double left_rpm = left_motors->velocity(vex::velocityUnits::rpm);
+    const double right_rpm = right_motors->velocity(vex::velocityUnits::rpm);
+    const double wheel_circumference = M_PI * config->odom_wheel_diam;
+    const double raw_left_vel = (left_rpm / 60.0) * wheel_circumference / config->odom_gear_ratio;
+    const double raw_right_vel = (right_rpm / 60.0) * wheel_circumference / config->odom_gear_ratio;
+
+    double left_vel = raw_left_vel;
+    double right_vel = raw_right_vel;
+
+    if (drive_observer != nullptr && drive_observer->initialized()) {
+        const double observer_left_vel = drive_observer->left_velocity().inps();
+        const double observer_right_vel = drive_observer->right_velocity().inps();
+        const double left_diff = std::abs(observer_left_vel - raw_left_vel);
+        const double right_diff = std::abs(observer_right_vel - raw_right_vel);
+        const double raw_avg_speed = 0.5 * (std::abs(raw_left_vel) + std::abs(raw_right_vel));
+        const double observer_avg_speed = 0.5 * (std::abs(observer_left_vel) + std::abs(observer_right_vel));
+
+        const bool severe_stall_mismatch = raw_avg_speed < 1.0 && observer_avg_speed > 4.0;
+        const bool bad_match = severe_stall_mismatch || left_diff > 4.0 || right_diff > 4.0;
+        const bool good_match = left_diff < 2.0 && right_diff < 2.0;
+
+        if (bad_match) {
+            observer_velocity_bad_cycles_++;
+            observer_velocity_good_cycles_ = 0;
+        } else if (good_match) {
+            observer_velocity_good_cycles_++;
+            observer_velocity_bad_cycles_ = 0;
+        } else {
+            observer_velocity_bad_cycles_ = 0;
+            observer_velocity_good_cycles_ = 0;
+        }
+
+        if (observer_velocity_bad_cycles_ >= 2) {
+            use_observer_velocity_ = false;
+        } else if (observer_velocity_good_cycles_ >= 8) {
+            use_observer_velocity_ = true;
+        }
+
+        if (use_observer_velocity_) {
+            left_vel = observer_left_vel;
+            right_vel = observer_right_vel;
+        }
+    }
     
     double vx = (left_vel + right_vel) / 2.0;
     double vy = 0.0;
@@ -209,6 +262,8 @@ int lidar_thread(void* ptr) {
             if (packet.size() != 4) {
                 continue;
             }
+
+            // printf("recv\n");
             
             uint16_t angle_q6;
             uint16_t dist;
@@ -218,7 +273,7 @@ int lidar_thread(void* ptr) {
             double angle = fmod(angle_q6 * 0.015625, 360);
             angle = wrap_degrees_360(-angle);
             double distance = (dist / 25.4);
-            
+
             // no fake angles
             if (angle > 360 || angle < 0) {
                 continue;
@@ -250,7 +305,7 @@ int lidar_thread(void* ptr) {
             }
 
             // log every other beam
-            if (i % 2 == 0) {
+            if (i % 16 == 0) {
                 obj.logger->build(0x04)
                     .add(meas_time)
                     .add((float)distance)

@@ -11,6 +11,10 @@
 #include "core/utils/command_structure/auto_command.h"
 #include "core/utils/controls/feedback_base.h"
 #include "core/utils/controls/pid.h"
+#include "core/utils/controls/state_space/ltv_differential_drive_controller.h"
+#include "core/utils/controls/state_space/tank_drive_model.h"
+#include "core/utils/controls/state_space/tank_drive_observer.h"
+#include "core/utils/trajectory/trajectory_generator.h"
 #include "core/utils/pure_pursuit.h"
 #include "vex.h"
 #include <vector>
@@ -38,7 +42,15 @@ class TankDrive {
      * more info
      * @param odom an odometry system to track position and rotation. this is necessary to execute autonomous paths
      */
-    TankDrive(motor_group &left_motors, motor_group &right_motors, robot_specs_t &config, OdometryBase *odom = NULL, SerialLogger *logger = NULL);
+    TankDrive(
+      motor_group &left_motors,
+      motor_group &right_motors,
+      robot_specs_t &config,
+      OdometryBase *odom = NULL,
+      SerialLogger *logger = NULL,
+      TankDriveModel *drive_model = NULL,
+      TankDriveObserver *observer = NULL);
+    ~TankDrive();
 
     AutoCommand *DriveToPointCmd(
       Translation2d pt, vex::directionType dir = vex::forward, double max_speed = 1.0, double end_speed = 0.0
@@ -89,6 +101,24 @@ class TankDrive {
     AutoCommand *PurePursuitCmd(
       Feedback &feedback, PurePursuit::Path path, directionType dir, double max_speed = 1, double end_speed = 0
     );
+
+    /**
+     * Returns an autonomous command that follows a time-parameterized
+     * trajectory using the LTV differential-drive controller.
+     *
+     * @param trajectory The trajectory to follow.
+     * @param cfg Controller configuration and tuning parameters.
+     */
+    AutoCommand *FollowTrajectoryCmd(const Trajectory &trajectory, const TankTrajectoryFollowerConfig &cfg);
+
+    /**
+     * Returns an autonomous command that replays the trajectory feedforward in
+     * open loop.
+     *
+     * @param trajectory The trajectory to replay.
+     * @param stop_at_end True to stop the drive at the end of the trajectory.
+     */
+    AutoCommand *FollowTrajectoryOpenLoopCmd(const Trajectory &trajectory, bool stop_at_end = true);
     Condition *DriveStalledCondition(double stall_time);
     AutoCommand *DriveTankCmd(double left, double right);
 
@@ -113,6 +143,7 @@ class TankDrive {
      * @param bt  breaktype. What to do if the driver lets go of the sticks
      */
     void drive_tank(double left, double right, int power = 1, BrakeType bt = BrakeType::None);
+    void drive_tank_voltage(double left_volts, double right_volts);
     /**
      * Drive the robot raw-ly
      * @param left the percent to run the left motors (-1, 1)
@@ -132,6 +163,41 @@ class TankDrive {
      * @param bt  breaktype. What to do if the driver lets go of the sticks
      */
     void drive_arcade(double forward_back, double left_right, int power = 1, BrakeType bt = BrakeType::None);
+
+    double get_left_position();
+    double get_right_position();
+    double get_left_velocity();
+    double get_right_velocity();
+    double raw_left_velocity() const;
+    double raw_right_velocity() const;
+    Velocity max_linear_velocity() const;
+    Velocity forward_back_input_to_linear_velocity(double forward_back) const;
+    Voltage forward_back_input_to_common_mode_voltage(double forward_back) const;
+    void drive_line(
+      double forward_back,
+      const Translation2d &line_point,
+      const Rotation2d &line_heading,
+      const TankTrajectoryFollowerConfig &cfg);
+
+    /**
+     * Follows a time-parameterized trajectory using pose feedback from the
+     * active odometry system and wheel-state feedback from the drive observer.
+     *
+     * @param trajectory The trajectory to follow.
+     * @param cfg Controller configuration and tuning parameters.
+     * @return true once the trajectory has completed.
+     */
+    bool follow_trajectory(const Trajectory &trajectory, const TankTrajectoryFollowerConfig &cfg);
+
+    /**
+     * Replays the nominal wheel feedforward from trajectory state in open
+     * loop, without applying feedback.
+     *
+     * @param trajectory The trajectory to replay.
+     * @param stop_at_end True to stop the drive at the end of the trajectory.
+     * @return true once the trajectory has completed.
+     */
+    bool follow_trajectory_open_loop(const Trajectory &trajectory, bool stop_at_end = true);
 
     /**
      * Use odometry to drive forward a certain distance using a custom feedback
@@ -331,6 +397,8 @@ class TankDrive {
      * @return True when the path is complete
      */
   private:
+    double raw_left_position() const;
+    double raw_right_position() const;
     bool pure_pursuit(PurePursuit::Path path, directionType dir, double max_speed = 1, double end_speed = 0);
     motor_group &left_motors;  ///< left drive motors
     motor_group &right_motors; ///< right drive motors
@@ -350,4 +418,11 @@ class TankDrive {
                                    ///< target once, not every iteration that you're driving)
     bool is_pure_pursuit = false;  ///< true if we are driving with a pure pursuit system
     SerialLogger *logger;
+    TankDriveModel *drive_model = NULL;
+    TankDriveObserver *drive_observer = NULL;
+    LTVDifferentialDriveController *trajectory_controller = NULL;
+    vex::timer trajectory_timer;
+    bool trajectory_settle_checking = false;
+    double trajectory_settle_start = 0.0;
+    int trajectory_print_row = 0;
 };

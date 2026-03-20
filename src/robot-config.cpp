@@ -14,6 +14,7 @@
 #include <vex_units.h>
 #include "core/device/wrapper_device.hpp"
 #include "core/device/vdb/registry-controller.hpp"
+#include "subsystems/DriveParamUKF.h"
 #include "subsystems/Lidar.h"
 //VEX
 vex::controller con;
@@ -93,18 +94,43 @@ robot_specs_t config = {
   .robot_radius = 15,
   .odom_wheel_diam = 2.29,
   .odom_gear_ratio = 1,
-  .dist_between_wheels = 12.4,
+  .dist_between_wheels = 11.8,
   .drive_correction_cutoff = 15,
   .drive_feedback = &drive_pid,
   .turn_feedback = &turn_pid,
   .correction_pid = turn_pid_cfg,
 };
 
-LidarReceiver lidar(vex::PORT15, 921600, &imu, &left_motors, &right_motors, &config, &logger);
+TankDriveModel drive_model(
+  Length::from<inch_tag>(11.8),
+  12_V,
+  0.189_VpInPs,
+  0.0416_VpInPs2,
+  1.23_VpRadPs,
+  0.20651_VpRadPs2
+);
+
+TankDriveObserver drive_observer(drive_model, 10_ms);
+
+TankTrajectoryFollowerConfig trajectory_follower_config;
+
+TankTrajectoryFollowerConfig line_cfg = [] {
+  TankTrajectoryFollowerConfig cfg;
+  cfg.q_tolerances = {{5, 1.5, 0.3, 20, 20}};
+  cfg.r_tolerances = {{12, 12}};
+  cfg.dt = 10_ms;
+  cfg.max_velocity = 0_inps;
+  cfg.velocity_step = 0.2_inps;
+  cfg.stop_at_end = false;
+  return cfg;
+}();
+
+SerialLogger logger(vex::PORT12);
+LidarReceiver lidar(vex::PORT15, 921600, &imu, &left_motors, &right_motors, &config, &logger, &drive_observer);
 
 OdometryLidarWrapper odom(&lidar);
 OdometryTank odomtank(left_motors, right_motors, config, &imu);
-TankDrive drive_sys(left_motors, right_motors, config, &odom); //define how robot moves
+TankDrive drive_sys(left_motors, right_motors, config, &odom, &logger, &drive_model, &drive_observer); //define how robot moves
 IntakeSys intake_sys(toproller, frontroller, backroller, agitatorroller, backscoreroller, lower_intake_sensor, middle_intake_sensor, zlight_board, match_loader);
 
 AutoCommand *MatchLoaderCmd(bool sol_on) {
@@ -122,7 +148,6 @@ struct pose_timestamp {
   float deg;
 };
 
-SerialLogger logger(vex::PORT12);
 
 /*                 144
  * y /---------------\ 144
@@ -137,7 +162,8 @@ SerialLogger logger(vex::PORT12);
 Pose2d right_auto_pose(19.5, 54, from_degrees(270));
 Pose2d left_auto_pose(19.5, 86.5, from_degrees(90));
 Pose2d skills_auto_pose(24, 71.25, from_degrees(90));
-Pose2d &auto_start_pose = skills_auto_pose;
+Pose2d curve_start(71.25, 95.0, from_degrees(0));
+Pose2d &auto_start_pose = curve_start;
 void robot_init() {
  imu.calibrate();
  while (!logger.is_connected() && (vexSystemHighResTimeGet() - init_us) < 5000000) {
@@ -167,24 +193,42 @@ void robot_init() {
   odom.set_position(auto_start_pose);
   printf("started\n");
 
+
   init_us = vexSystemHighResTimeGet();
   
   lidar.start();
   lidar.reset_ukf(auto_start_pose);
-  logger.define_and_send_schema(0x01, "time:u64, x:f32, y:f32, t:f32");
+  bool logger_schema_sent = false;
   while (true) {
+    if (!logger.is_connected()) {
+      logger.update();
+      logger_schema_sent = false;
+      vexDelay(10);
+      continue;
+    }
+
+    if (!logger_schema_sent) {
+      logger.define_and_send_schema(0x01, "time:u64, x:f32, y:f32, t:f32");
+      logger.define_and_send_schema(0x02, "time:u64, l:f32, r:f32");
+      logger_schema_sent = true;
+    }
+
     // lidar.resetUKF({48, 96, 180});
     Pose2d pose = drive_sys.get_position();
     uint64_t timestamp = vexSystemHighResTimeGet() - init_us;
     float x((float)pose.x());
     float y((float)pose.y());
     float t((float)pose.rotation().wrapped_degrees_360());
+    float l((float)drive_sys.get_left_velocity());
+    float r((float)drive_sys.get_right_velocity());
     logger.build(0x01)
        .add(timestamp)
        .add(x)
        .add(y)
        .add(t)
        .send();
+    const double observer_data[3] = {(double)timestamp, (double)l, (double)r};
+    logger.log(0x02, observer_data, 3);
     // printf("loop\n");
     vexDelay(10);
   }

@@ -1,4 +1,5 @@
 #include "core/utils/pure_pursuit.h"
+#include "core/utils/math/spline/spline_path.h"
 
 /**
  * Create a Path
@@ -214,35 +215,8 @@ PurePursuit::inject_path(const std::vector<Translation2d> &path, double spacing)
  * @return The smoothed path.
  */
 [[maybe_unused]] std::vector<Translation2d>
-PurePursuit::smooth_path_hermite(const std::vector<hermite_point> &path, double steps) {
-    std::vector<Translation2d> new_path;
-    for (int i = 0; i < path.size() - 1; i++) {
-        for (int t = 0; t < steps; t++) {
-            // Storing the start and end points and slopes at those points as Translation2ds.
-            Translation2d tmp = path[i].getPoint();
-            Translation2d p1 = Translation2d(tmp.x(), tmp.y());
-            tmp = path[i + 1].getPoint();
-            Translation2d p2 = Translation2d(tmp.x(), tmp.y());
-            Translation2d t1 = path[i].getTangent();
-            Translation2d t2 = path[i + 1].getTangent();
-
-            // Scale s from 0.0 to 1.0
-            double s = (double)t / (double)steps;
-
-            // Hermite Blending functions
-            double h1 = 2 * pow(s, 3) - 3 * pow(s, 2) + 1;
-            double h2 = -2 * pow(s, 3) + 3 * pow(s, 2);
-            double h3 = pow(s, 3) - 2 * pow(s, 2) + s;
-            double h4 = pow(s, 3) - pow(s, 2);
-
-            // Calculate the point
-            Translation2d pv = p1 * h1 + p2 * h2 + t1 * h3 + t2 * h4;
-            new_path.push_back(pv);
-        }
-    }
-    // Adding last point
-    new_path.push_back(path.back().getPoint());
-    return new_path;
+PurePursuit::smooth_path_hermite(const std::vector<HermitePoint> &path, double steps) {
+    return SplinePath::from_hermite(path, SplinePath::Order::Quintic).sample_by_segment_steps(steps);
 }
 
 /**

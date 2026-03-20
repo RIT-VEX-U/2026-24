@@ -4,6 +4,7 @@
 #include "core/robot_specs.h"
 #include "core/utils/math/geometry/pose2d.h"
 #include "core/utils/math/geometry/rotation2d.h"
+#include "core/utils/controls/state_space/tank_drive_observer.h"
 #include "core/utils/math/estimator/unscented_kalman_filter.h"
 #include "core/utils/math/numerical/numerical_integration.h"
 #include "logger/logger.h"
@@ -37,7 +38,15 @@ namespace lidar_ukf {
 
 class LidarReceiver : public COBSSerialDevice {
 public:
-    LidarReceiver(int port, int baudrate, vex::inertial *imu, vex::motor_group *left_motors, vex::motor_group *right_motors, robot_specs_t *config, SerialLogger *logger);
+    LidarReceiver(
+      int port,
+      int baudrate,
+      vex::inertial *imu,
+      vex::motor_group *left_motors,
+      vex::motor_group *right_motors,
+      robot_specs_t *config,
+      SerialLogger *logger,
+      TankDriveObserver *drive_observer);
 
     void start();
     
@@ -53,18 +62,22 @@ public:
 
     bool is_running() const { return running_; }
 
-    double BEAM_TOLERANCE = 20;
+    double BEAM_TOLERANCE = 10;
 private:
     vex::inertial *imu;
     vex::motor_group *left_motors;
     vex::motor_group *right_motors;
     robot_specs_t *config;
     SerialLogger *logger;
+    TankDriveObserver *drive_observer;
 
     vex::task* lidar_handle_ = nullptr;
     bool running_ = false;
     
     uint64_t last_predict_us_ = 0;
+    bool use_observer_velocity_ = true;
+    int observer_velocity_bad_cycles_ = 0;
+    int observer_velocity_good_cycles_ = 0;
     
     // x [x, y, theta], u [vx, vy, omega], y [distance, lidar_angle]
     UnscentedKalmanFilter<3, 3, 2> ukf_;

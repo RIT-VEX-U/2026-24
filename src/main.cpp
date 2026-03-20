@@ -15,7 +15,7 @@ vex::competition comp;
 int main() {
     comp.autonomous(autonomous);
     comp.drivercontrol(opcontrol);
-    comp.bStopAllTasksBetweenModes = true;
+    comp.bStopTasksBetweenModes = true;
 
     robot_init();
 }

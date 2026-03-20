@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/utils/math/eigen_interface.h"
-#include "../vendor/eigen/unsupported/Eigen/MatrixFunctions"
+#include <unsupported/Eigen/MatrixFunctions>
 
 #include "core/utils/math/systems/dare_solver.h"
 #include "core/utils/math/systems/discretization.h"

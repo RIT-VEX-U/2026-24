@@ -21,7 +21,10 @@ double clamp(double value, double low, double high);
  * @param b at t = 1, output = b
  * @return a linear mixing of a and b according to t
  */
-double lerp(double a, double b, double t);
+template <typename T>
+constexpr T lerp(const T& startValue, const T& endValue, double t) {
+  return startValue + (endValue - startValue) * t;
+}
 /**
  * Returns the sign of a number
  * @param x

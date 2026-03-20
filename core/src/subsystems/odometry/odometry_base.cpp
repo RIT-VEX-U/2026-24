@@ -22,9 +22,7 @@ int OdometryBase::background_task(void *ptr) {
     OdometryBase &obj = *((OdometryBase *)ptr);
     vexDelay(1000);
     while (!obj.end_task) {
-        obj.mut.lock();
         obj.update();
-        obj.mut.unlock();
         vexDelay(5);
     }
 
@@ -42,25 +40,14 @@ void OdometryBase::end_async() { this->end_task = true; }
  * Gets the current position and rotation
  */
 Pose2d OdometryBase::get_position(void) {
-    mut.lock();
-
-    // Create a new struct to pass-by-value
-    Pose2d out = current_pos;
-
-    mut.unlock();
-
-    return out;
+    return current_pos;
 }
 
 /**
  * Sets the current position of the robot
  */
 void OdometryBase::set_position(const Pose2d &newpos) {
-    mut.lock();
-
     current_pos = newpos;
-
-    mut.unlock();
 }
 
 AutoCommand *OdometryBase::SetPositionCmd(const Pose2d &newpos) {
@@ -92,33 +79,17 @@ double OdometryBase::smallest_angle(double start_deg, double end_deg) {
 }
 
 double OdometryBase::get_speed() {
-    mut.lock();
-    double retval = speed;
-    mut.unlock();
-
-    return retval;
+    return speed;
 }
 
 double OdometryBase::get_accel() {
-    mut.lock();
-    double retval = accel;
-    mut.unlock();
-
-    return retval;
+    return accel;
 }
 
 double OdometryBase::get_angular_speed_deg() {
-    mut.lock();
-    double retval = ang_speed_deg;
-    mut.unlock();
-
-    return retval;
+    return ang_speed_deg;
 }
 
 double OdometryBase::get_angular_accel_deg() {
-    mut.lock();
-    double retval = ang_accel_deg;
-    mut.unlock();
-
-    return retval;
+    return ang_accel_deg;
 }

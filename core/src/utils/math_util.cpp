@@ -21,8 +21,6 @@ double clamp(double val, double low, double high) {
     return val;
 }
 
-double lerp(double a, double b, double t) { return a * (1.0 - t) + b * t; }
-
 /**
  * Returns the sign of a number
  * @param x
@@ -93,7 +91,7 @@ double covariance(std::vector<std::pair<double, double>> const &points, double m
     for (int i = 0; i < points.size(); i++) {
         covar += (points[i].first - meanx) * (points[i].second - meany);
     }
-    return covar;
+    return covar / (points.size() - 1);
 }
 
 /*
