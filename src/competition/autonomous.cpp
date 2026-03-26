@@ -10,7 +10,7 @@
 
 #define LOG 3
 
-void (*autonomous)() = skills_path;
+void (*autonomous)() = left_auto_path;
 
 // --- AutoCommands ---
 
@@ -49,8 +49,8 @@ void right_auto_path() {
     // Matchloader
 
     intake_sys.MatchLoaderCmd(true),
-    drive_sys.DriveForwardCmd(33, vex::forward, 0.8)->withTimeout(1.5),
-    drive_sys.TurnToHeadingCmd(180, .8)->withTimeout(2.25),
+    drive_sys.DriveForwardCmd(31.75, vex::forward, 0.8)->withTimeout(1.5),
+    drive_sys.TurnToHeadingCmd(179 /*180*/, .8)->withTimeout(2.25),
     SunroofSolCmd(true),
     intake_sys.AutoLoadCmd(),
     DriveTankRawCmd(0.4, 0.4),
@@ -87,9 +87,9 @@ void right_auto_path() {
     }),
     new DelayCommand(2950),
 
-    DriveTankRawCmd(0.5, 0.5),
+    /*DriveTankRawCmd(0.5, 0.5),
     new DelayCommand(250),
-    SunroofSolCmd(true),
+    SunroofSolCmd(true),*/
     DriveTankRawCmd(-0.45, -0.45),
   };
 
@@ -137,17 +137,18 @@ void left_auto_path() {
         DriveTankRawCmd(-0.45, -0.45)}))->withTimeout(3),
       (new InOrder({new DelayCommand(650), intake_sys.OutBackCmd()}))->withTimeout(3),
     }),
-    new DelayCommand(2950),
+    new DelayCommand(3950),
 
-    /*DriveTankRawCmd(0.5, 0.5),
+    DriveTankRawCmd(0.5, 0.5),
     new DelayCommand(250),
-    SunroofSolCmd(true),*/
+    SunroofSolCmd(true),
     DriveTankRawCmd(-0.45, -0.45),
   };
 
   cc.run();
 }
 
+// THIS SKILLS PATH WILL NOT WORK, AS IT WAS WRITTEN WITH DIFFERENT DRIVE PID VALUES OF .04, .0025, 1, .5 AND TURN PID VALUES OF 2, .5 (STARTING AT DEADBANDS)
 void skills_path() {
   printf("Build %d\n", LOG);
   intake_sys.auto_fix_jamming(true);
@@ -171,23 +172,69 @@ void skills_path() {
     new DelayCommand(1500),
 
     // Score preloads
-    drive_sys.DriveForwardCmd(50, vex::reverse, .75),
-    drive_sys.TurnToHeadingCmd(180, .75)->withTimeout(2),
-    DriveTankRawCmd(-.35, -.35), // tune this time
+    drive_sys.DriveToPointCmd({23.75, 23}, vex::reverse, .75)->withTimeout(3),
+    drive_sys.TurnToHeadingCmd(180, .75)->withTimeout(1.75), 
+    drive_sys.DriveToPointCmd({40.5, 23}, vex::reverse, .5, .25)->withTimeout(3),
     intake_sys.OutBackCmd(),
-    new DelayCommand(5000), // tune this time
+    DriveTankRawCmd(-.35, -.35),
+    new DelayCommand(2500),
+    new FunctionCommand([](){
+      odom.set_position(Pose2d({42.5, 23}, odom.get_position().rotation().radians()));
+      return true;
+    }),
 
     // Collect matchloads
-    drive_sys.TurnToHeadingCmd(180, .75)->withTimeout(2),
-    
-      // go to matchloader
-      // pick up blocks so red is on top
+    drive_sys.DriveForwardCmd(6, vex::forward, .7)->withTimeout(2),
+    drive_sys.TurnToPointCmd({10.125, 23}, vex::forward, .6)->withTimeout(2),
+    intake_sys.AutoLoadCmd(),
+    new FunctionCommand([]() {
+      intake_sys.autoload_prefer = intake_sys.BlockColor::BLUE;
+      return true;
+    }),
+    new Parallel({
+      drive_sys.DriveToPointCmd({17, 23}, vex::forward, .7)->withTimeout(2),
+      SunroofSolCmd(true),
+    }),
+
+    drive_sys.TurnToHeadingCmd(181.5, .6),
+    DriveTankRawCmd(0.5, 0.5),
+    new DelayCommand(5500),
+    DriveTankRawCmd(0, 0),
+    new FunctionCommand([](){
+      odom.set_position(Pose2d({12.5, 23}, odom.get_position().rotation().radians()));
+      return true;
+    }),
 
     // Score matchloads
-      // score matchload blocks
+    drive_sys.TurnToPointCmd({40, 23}, vex::reverse, .6)->withTimeout(2),
+    drive_sys.DriveToPointCmd({40, 23}, vex::reverse, .5)->withTimeout(4),
+    drive_sys.TurnToHeadingCmd(180, .6)->withTimeout(1),
+
+    SunroofSolCmd(false),
+    intake_sys.OutBackCmd(),
+    DriveTankRawCmd(-.2, -.2),
+    new DelayCommand(4000),
+    intake_sys.IntakeStopCmd(),
+    DriveTankRawCmd(0,0),
+    new FunctionCommand([](){
+      odom.set_position(Pose2d({42.5, 23}, odom.get_position().rotation().radians()));
+      return true;
+    }),
 
     // Park
-      // drive to park zone while running intake
+    intake_sys.MatchLoaderCmd(false),
+    drive_sys.DriveForwardCmd(12, vex::forward, .5)->withTimeout(2),
+    SunroofSolCmd(true),
+    drive_sys.DriveForwardCmd(12, vex::reverse, .2)->withTimeout(2),
+    drive_sys.DriveForwardCmd(12, vex::forward, .5)->withTimeout(2),
+    /*drive_sys.TurnToPointCmd({6.5, 40}, vex::forward, .7)->withTimeout(2),
+    drive_sys.DriveToPointCmd({6.5, 40}, vex::forward, .5)->withTimeout(2),
+    drive_sys.TurnToHeadingCmd(90, .7)->withTimeout(2),
+    intake_sys.IntakeCmd(),
+    new DelayCommand(10000),
+    DriveTankRawCmd(.4, .4),
+    new DelayCommand(1750),
+    DriveTankRawCmd(0, 0),*/
   };
 
   cc.run();
