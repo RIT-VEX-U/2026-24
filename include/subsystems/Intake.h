@@ -11,25 +11,29 @@ class IntakeSys{
 public:
 
 // ==================== Constructor ======================
-  IntakeSys(vex::motor top_roller, vex::motor front_roller, vex::motor back_roller, vex::motor agitator_roller, vex::motor back_score_roller, vex::optical lower_intake_sensor, vex::optical middle_intake_sensor, vex::digital_out lightboard, vex::digital_out matchloader_sol);
+  IntakeSys(vex::motor top_roller, vex::motor front_roller, vex::motor back_roller, vex::motor agitator_roller, vex::motor back_score_roller, 
+    vex::optical low_optical_sensor, vex::optical high_optical_sensor, vex::distance distance_sensor,
+    vex::digital_out lower_lightboard, vex::digital_out upper_lightboard, vex::digital_out matchloader_sol);
 
 // ==================== Helper Enums =====================
   enum IntakeState{
+    STOPPED,
     IN,
     OUTBACK, // Like the restaurant
     OUTTOP,
     OUTMIDDLE,
     OUTBOTTOM,
-    STOPPED,
-    AUTOLOAD,
+    AUTOLOAD = 0x80000000,
     FRONTPURGE,
-    HOPPERRETURN
-  };
+    HOPPERRETURN,
+    ESQUEBOT,
+    ESQUESCORE
+  }; // Positive states are held states, negative states must be reset
 
   enum BlockColor{
+    NOTHING,
     RED,
     BLUE,
-    NOTHING,
   };
 
 // ==================== Intake States ====================
@@ -55,9 +59,12 @@ public:
   void autoload(double volts = 12);
   void frontpurge(double volts = 12);
   void hopperreturn(double volts = 12);
+  void esquebot(double volts = 12);
+  void esquescore(double volts = 12);
   void intake_stop();
 
   void lock_state(bool lock = true);
+  bool has_blocks_loaded();
 
 // ==================== Color Sorting ====================
 
@@ -101,9 +108,11 @@ private:
   vex::motor back_roller;
   vex::motor agitator_roller;
   vex::motor back_score_roller;
-  vex::optical lower_intake_sensor;
-  vex::optical middle_intake_sensor;
+  vex::optical low_optical_sensor;
+  vex::optical high_optical_sensor;
+  vex::distance distance_sensor;
   vex::digital_out lightboard;
+  vex::digital_out upper_lightboard;
   vex::digital_out matchloader_sol;
 
 // ==================== State Machine ====================

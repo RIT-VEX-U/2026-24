@@ -10,14 +10,12 @@
 // ==================== Constructor ====================
 
 IntakeSys::IntakeSys(
-  vex::motor top_roller, vex::motor front_roller, vex::motor back_roller,
-  vex::motor agitator_roller, vex::motor back_score_roller,
-  vex::optical lower_intake_sensor, vex::optical middle_intake_sensor,
-  vex::digital_out lightboard, vex::digital_out matchloader_sol
-) : top_roller(top_roller), front_roller(front_roller), back_roller(back_roller),
-    agitator_roller(agitator_roller), back_score_roller(back_score_roller),
-    lower_intake_sensor(lower_intake_sensor), middle_intake_sensor(middle_intake_sensor),
-    lightboard(lightboard), matchloader_sol(matchloader_sol), intake_state(STOPPED), intake_volts(12)
+  vex::motor top_roller, vex::motor front_roller, vex::motor back_roller, vex::motor agitator_roller, vex::motor back_score_roller,
+  vex::optical low_optical_sensor, vex::optical high_optical_sensor, vex::distance distance_sensor,
+  vex::digital_out lightboard, vex::digital_out upper_lightboard, vex::digital_out matchloader_sol
+) : top_roller(top_roller), front_roller(front_roller), back_roller(back_roller), agitator_roller(agitator_roller), back_score_roller(back_score_roller),
+    low_optical_sensor(low_optical_sensor), high_optical_sensor(high_optical_sensor), distance_sensor(distance_sensor), lightboard(lightboard),
+    upper_lightboard(upper_lightboard), matchloader_sol(matchloader_sol), intake_state(STOPPED), intake_volts(12)
 {
   task = vex::task(thread_fn, this);
 }
@@ -40,6 +38,10 @@ void IntakeSys::frontpurge(double volts) {
   if(state_unlocked) { intake_volts = volts; intake_state = FRONTPURGE; } }
 void IntakeSys::hopperreturn(double volts) {
   if(state_unlocked) { intake_volts = volts; intake_state = HOPPERRETURN; } }
+void IntakeSys::esquebot(double volts) {
+  if(state_unlocked) { intake_volts = volts; intake_state = ESQUEBOT; } }
+void IntakeSys::esquescore(double volts) {
+  if(state_unlocked) { intake_volts = volts; intake_state = ESQUESCORE; } }
 void IntakeSys::intake_stop() { if(state_unlocked) intake_state = STOPPED;  }
 
 void IntakeSys::lock_state(bool lock) {
@@ -63,8 +65,8 @@ void IntakeSys::match_load(bool do_match_load) { matchloader_sol.set(do_match_lo
 void IntakeSys::auto_fix_jamming(bool fix_jamming) { do_jam_fix = fix_jamming; }
 
 bool IntakeSys::motor_jammed(vex::motor motor) {
-  return motor.current(vex::currentUnits::amp) >= 0.5 &&
-                       fabs(motor.velocity(vex::velocityUnits::rpm)) <= 0.1;
+  return  motor.current(vex::currentUnits::amp) >= 0.5 &&
+          fabs(motor.velocity(vex::velocityUnits::rpm)) <= 0.1;
 }
 
 // ==================== Sensor Utils ====================
@@ -74,6 +76,10 @@ IntakeSys::BlockColor IntakeSys::seeing_color(vex::optical sensor) {
   if (hue > 10 && hue < 30) return RED;
   if (hue > 180 && hue < 220) return BLUE;
   return NOTHING;
+}
+
+bool IntakeSys::has_blocks_loaded() {
+  return this->distance_sensor.objectDistance(vex::distanceUnits::in) < 4;
 }
 
 // ==================== Motor Helper(s) ====================
@@ -87,14 +93,22 @@ void IntakeSys::spin_motor(vex::motor &motor, double volts, bool jammed) {
 // ==================== Motor Behavior ====================
 
 void IntakeSys::run_state_machine(bool sorting) {
+  static int blocks_passed = 0;
+  static BlockColor prevBlock = BlockColor::NOTHING;
+  static vex::timer intake_timer;
+  static uint32_t important_time = intake_timer.time();
+
   double v = intake_volts;
   bool front_jammed = motor_jammed(front_roller);
   bool top_jammed = motor_jammed(top_roller);
   bool back_jammed = motor_jammed(back_roller);
   bool back_score_jammed = motor_jammed(back_score_roller);
 
-  if(intake_state != AUTOLOAD) {
-    autoload_prefer = BlockColor::NOTHING; lightboard.set(do_color_sort); }
+  BlockColor currentBlock = seeing_color(low_optical_sensor);
+  blocks_passed   = (intake_state == ESQUEBOT) ? blocks_passed : 0;
+  autoload_prefer = (intake_state == AUTOLOAD) ? autoload_prefer : BlockColor::NOTHING;
+  lightboard.set(intake_state == AUTOLOAD || intake_state == ESQUEBOT || do_color_sort);
+  upper_lightboard.set(intake_state == ESQUEBOT);
   switch (intake_state) {
     case STOPPED:
       front_roller.stop();
@@ -133,7 +147,7 @@ void IntakeSys::run_state_machine(bool sorting) {
       spin_motor(top_roller, sorting ? -v : v, top_jammed);
       spin_motor(back_roller, v, back_jammed);
       spin_motor(agitator_roller, -4*ceil(v/4.0), false); // -v for skills, -12 for driver
-      back_score_roller.stop();
+      spin_motor(back_score_roller, v, back_score_jammed); // back_score_roller.stop();
       break;
 
     case OUTTOP:
@@ -144,6 +158,26 @@ void IntakeSys::run_state_machine(bool sorting) {
       spin_motor(back_score_roller, v, back_score_jammed);
       break;
 
+    case ESQUESCORE:
+      spin_motor(front_roller, v, front_jammed);
+      spin_motor(top_roller, -v, top_jammed);
+      if(intake_timer.time() > important_time + 1000) spin_motor(back_roller, -v, back_jammed);
+      else back_roller.stop();
+      spin_motor(agitator_roller, v, false);
+      spin_motor(back_score_roller, -v, back_score_jammed);
+      break;
+
+    case ESQUEBOT:
+      if((currentBlock != prevBlock && prevBlock != BlockColor::NOTHING) ||
+         (currentBlock == seeing_color(high_optical_sensor) && currentBlock != BlockColor::NOTHING)) { blocks_passed++; printf("currentBlock = %d, highBlock = %d\n", currentBlock, seeing_color(high_optical_sensor)); }
+
+      if(blocks_passed >= 2) {
+        lock_state(false);
+        spin_motor(back_score_roller, v, back_score_jammed);
+        important_time = intake_timer.time();
+        esquescore();
+        break;
+      }
     case OUTBACK:
       spin_motor(front_roller, v, front_jammed);
       spin_motor(top_roller, -v, top_jammed);
@@ -152,26 +186,25 @@ void IntakeSys::run_state_machine(bool sorting) {
       spin_motor(back_score_roller, -v, back_score_jammed);
       break;
 
-    case AUTOLOAD: {
+    case AUTOLOAD:
       // Color-Independent Motors
-      lightboard.set(true);
+      //lightboard.set(true);
       spin_motor(front_roller, v, front_jammed);
       spin_motor(back_score_roller, -8, back_score_jammed);
       spin_motor(top_roller, -v, top_jammed);
       spin_motor(agitator_roller, v, false);
       
       // Color-Dependent Motors
-      BlockColor currentBlock = seeing_color(lower_intake_sensor);
       if(autoload_prefer == BlockColor::NOTHING) {      // Beginning of Macro
         autoload_prefer = currentBlock;
-        back_roller.stop();
+        spin_motor(back_roller, -v, back_jammed);
       } else if(currentBlock == autoload_prefer) {      // Seeing preferred
         spin_motor(back_roller, -v, back_jammed);
       } else if(currentBlock != BlockColor::NOTHING) {  // Seeing opposing
         spin_motor(back_roller, v, back_jammed);
       } // Seeing nothing defaults to previous state
       
-      break; }
+      break;
 
     case FRONTPURGE:
       //spin_motor(front_roller, -v, front_jammed);
@@ -190,6 +223,8 @@ void IntakeSys::run_state_machine(bool sorting) {
       spin_motor(back_score_roller, v, back_score_jammed);
       break;
   }
+
+  prevBlock = currentBlock;
 }
 
 // ==================== Background Thread ====================
@@ -199,7 +234,7 @@ int IntakeSys::thread_fn(void *ptr) {
 
   while (true) {
     bool sorting = self.do_color_sort &&
-                   self.seeing_color(self.lower_intake_sensor) == self.color_to_remove;
+                   self.seeing_color(self.low_optical_sensor) == self.color_to_remove;
 
     self.lightboard.set(self.do_color_sort);
     self.run_state_machine(sorting);

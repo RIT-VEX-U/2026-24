@@ -22,6 +22,7 @@ void PID_Tuning();
 
 bool enable_drive = true;
 bool sunroof_lock = false;
+vex::timer input_timer;
 
 Trajectory make_example_curveo() {
   
@@ -77,11 +78,11 @@ void opcontrol() {
     intake_sys.outbottom();
   });
   con.ButtonDown.pressed([](){
-    right_wing_solonoid.set(true);
+    // right_wing_solonoid.set(true);
     left_wing_solonoid.set(true);
   });
   con.ButtonDown.released([](){
-    right_wing_solonoid.set(false);
+    // right_wing_solonoid.set(false);
     left_wing_solonoid.set(false);
   });
   con.ButtonRight.pressed([](){
@@ -91,7 +92,38 @@ void opcontrol() {
       intake_sys.lock_state(false); // Unlock intake state
     }
     #endif
-    intake_sys.outback();
+
+    // do this when loading
+    if(intake_sys.has_blocks_loaded() || intake_sys.get_intake_state() == intake_sys.ESQUEBOT) {
+      #ifndef SKILLS
+        if(!sunroof_lock || intake_sys.get_intake_state() == intake_sys.ESQUEBOT)
+      #endif
+      sunroof_solonoid.set(false);
+
+      intake_sys.lock_state(false);
+      intake_sys.esquescore();
+      input_timer.event([]() { 
+        if(con.ButtonRight.pressing()) {
+          intake_sys.outback(); 
+        }
+      }, 200);
+    } else {
+      intake_sys.esquebot();
+      intake_sys.lock_state(true);
+      input_timer.event([]() { 
+        if(con.ButtonRight.pressing()) {
+          intake_sys.lock_state(false);
+          intake_sys.outback(); 
+        } else {
+          #ifndef SKILLS
+            sunroof_lock = true;
+          #endif
+          sunroof_solonoid.set(true);
+        }
+      }, 200);
+    }
+
+    // do this when scoring
   });
   con.ButtonUp.pressed([](){
       // enable_drive = false;
@@ -198,13 +230,13 @@ void opcontrol() {
 
     // printf("X: %.2f, Y: %.2f, Rot: %.2f\n", odom.get_position().x(), odom.get_position().y(), odom.get_position().rotation().degrees());
 
-    if(!con.ButtonR1.pressing() && !con.ButtonR2.pressing() &&
-      !con.ButtonL1.pressing() && !con.ButtonL2.pressing() && !con.ButtonRight.pressing() && !con.ButtonLeft.pressing() && intake_sys.get_intake_state() != IntakeSys::FRONTPURGE && intake_sys.get_intake_state() != IntakeSys::HOPPERRETURN)
-    {
-      intake_sys.intake_stop();
-    }
+    if(!con.ButtonR1.pressing() && !con.ButtonR2.pressing() && !con.ButtonL1.pressing() &&
+      !con.ButtonL2.pressing() && !con.ButtonRight.pressing() && !con.ButtonLeft.pressing() &&
+      (signed int) intake_state >= 0)
+      { intake_sys.intake_stop(); sunroof_lock = false; }
 
     #ifndef SKILLS // Lock and unlock sunroof in driver, but not in skills
+    if(intake_state == IntakeSys::ESQUESCORE) sunroof_lock = false;
     if(intake_state != IntakeSys::FRONTPURGE && prev_state == IntakeSys::FRONTPURGE) {
       sunroof_lock = false;
       sunroof_solonoid.set(false);

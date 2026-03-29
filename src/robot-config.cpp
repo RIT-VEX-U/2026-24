@@ -42,16 +42,18 @@ vex::motor agitatorroller(PORT17, vex::gearSetting::ratio6_1, false);
 vex::motor backscoreroller(PORT11, vex::gearSetting::ratio6_1, false);
 
 vex::digital_out zlight_board{Brain.ThreeWirePort.A};
+vex::digital_out upper_light_board{Brain.ThreeWirePort.D};
 vex::digital_out match_loader{Brain.ThreeWirePort.B};
-vex::digital_out right_wing_solonoid{Brain.ThreeWirePort.D};
+//vex::digital_out right_wing_solonoid{Brain.ThreeWirePort.D};
 vex::digital_out left_wing_solonoid{Brain.ThreeWirePort.C};
 vex::digital_out right_stick_solonoid{Brain.ThreeWirePort.E};
 vex::digital_out sunroof_solonoid{Brain.ThreeWirePort.F};
 
 vex::inertial imu(PORT14);
 
-vex::optical lower_intake_sensor(PORT2);
-vex::optical middle_intake_sensor(PORT13);
+vex::optical low_optical_sensor(PORT2);
+vex::optical high_optical_sensor(PORT13);
+vex::distance intake_distance_sensor(PORT18);
 
 
 
@@ -131,7 +133,7 @@ LidarReceiver lidar(vex::PORT15, 921600, &imu, &left_motors, &right_motors, &con
 OdometryLidarWrapper odom(&lidar);
 OdometryTank odomtank(left_motors, right_motors, config, &imu);
 TankDrive drive_sys(left_motors, right_motors, config, &odom, &logger, &drive_model, &drive_observer); //define how robot moves
-IntakeSys intake_sys(toproller, frontroller, backroller, agitatorroller, backscoreroller, lower_intake_sensor, middle_intake_sensor, zlight_board, match_loader);
+IntakeSys intake_sys(toproller, frontroller, backroller, agitatorroller, backscoreroller, low_optical_sensor, high_optical_sensor, intake_distance_sensor, zlight_board, upper_light_board, match_loader);
 
 AutoCommand *MatchLoaderCmd(bool sol_on) {
   return new FunctionCommand([sol_on]() {
