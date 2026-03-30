@@ -400,6 +400,19 @@ class TankDrive {
     double raw_left_position() const;
     double raw_right_position() const;
     bool pure_pursuit(PurePursuit::Path path, directionType dir, double max_speed = 1, double end_speed = 0);
+    void print_trajectory_log();
+
+    struct TrajectoryLogRow {
+        float t;
+        float ref_x, ref_y, ref_heading;
+        float ref_left_vel, ref_right_vel;
+        float robot_x, robot_y, robot_heading;
+        float actual_left_vel, actual_right_vel;
+        float raw_left_vel, raw_right_vel;
+        float ff_left, ff_right;
+        float fb_left, fb_right;
+        float cmd_left, cmd_right;
+    };
     motor_group &left_motors;  ///< left drive motors
     motor_group &right_motors; ///< right drive motors
 
@@ -421,6 +434,8 @@ class TankDrive {
     TankDriveModel *drive_model = NULL;
     TankDriveObserver *drive_observer = NULL;
     LTVDifferentialDriveController *trajectory_controller = NULL;
+    TankDriveModel::StateVector trajectory_prev_wheel_ref = TankDriveModel::StateVector::Zero();
+    std::vector<TrajectoryLogRow> trajectory_log;
     vex::timer trajectory_timer;
     bool trajectory_settle_checking = false;
     double trajectory_settle_start = 0.0;

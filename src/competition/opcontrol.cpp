@@ -40,19 +40,35 @@ Trajectory make_example_curveo() {
     HermitePoint::from_heading(cx, cy + radius, 0.0, tangent_mag),
   };
 
-  TrajectoryConfig config(60.000_inps, 60.000_inps2);
+  TrajectoryConfig config(80.000_inps, 80.000_inps2);
+  config.set_start_velocity(0.000_inps);
+  config.set_end_velocity(40.000_inps);
+  config.set_reversed(false);
+  config.set_track_width(11.8_in);
+  config.add_constraint(CentripetalAccelerationConstraint(100.000_inps2));
+  config.add_constraint(TankVoltageConstraint(0.175_VpInPs, 0.042_VpInPs2, 12.000_V, 12.000_in));
+  return TrajectoryGenerator::generate_trajectory(points, config);
+}
+
+Trajectory make_example_lineo() {
+
+  std::vector<HermitePoint> points = {
+    HermitePoint(71.25, 96, 10, 0),
+    HermitePoint(118, 96, 10, 0),
+  };
+
+  TrajectoryConfig config(40.000_inps, 30.000_inps2);
   config.set_start_velocity(0.000_inps);
   config.set_end_velocity(0.000_inps);
   config.set_reversed(false);
   config.set_track_width(11.8_in);
-  config.add_constraint(CentripetalAccelerationConstraint(90.000_inps2));
-  config.add_constraint(TankVoltageConstraint(0.189_VpInPs, 0.0416_VpInPs2, 12.000_V, 12.000_in));
+  config.add_constraint(CentripetalAccelerationConstraint(180.000_inps2));
+  // config.add_constraint(TankVoltageConstraint(0.189_VpInPs, 0.0416_VpInPs2, 12.000_V, 12.000_in));
   return TrajectoryGenerator::generate_trajectory(points, config);
 }
 
 
-
-void opcontrol() {
+void opcontrol_normal() {
   intake_sys.auto_fix_jamming(false);
 
   con.ButtonR1.pressed([](){
@@ -125,7 +141,7 @@ void opcontrol() {
 
     // do this when scoring
   });
-  con.ButtonUp.pressed([](){
+  // con.ButtonUp.pressed([](){
       // enable_drive = false;
       // vexDelay(500);
       //
@@ -159,7 +175,7 @@ void opcontrol() {
       // cc.run();
       // vexDelay(2000);
       // enable_drive = true;
-      });
+      // });
   #ifdef TESTCODE
   con.ButtonUp.pressed([](){
     enable_drive = false;
@@ -167,23 +183,25 @@ void opcontrol() {
     enable_drive = true;
   });
   #endif
-    con.ButtonX.pressed([]() {
+    con.ButtonUp.pressed([]() {
         enable_drive = false;
+        Trajectory traj = make_example_curveo();
         CommandController cc{
-          drive_sys.FollowTrajectoryCmd(make_example_curveo(), trajectory_follower_config),
+          drive_sys.FollowTrajectoryCmd(traj, trajectory_follower_config),
+          // drive_sys.FollowTrajectoryOpenLoopCmd(make_example_lineo()),
         };
         cc.run();
         enable_drive = true;
     });
-  // con.ButtonX.pressed([](){
-  //   #ifdef SKILLS // Hopperreturn in skills, stick in driver
-  //   intake_sys.hopperreturn();
-  //   #else
-  //   // right_stick_solonoid.set(!right_stick_solonoid.value());
-  //
-  //
-  //   #endif
-  // });
+  con.ButtonX.pressed([](){
+    #ifdef SKILLS // Hopperreturn in skills, stick in driver
+    intake_sys.hopperreturn();
+    #else
+    // right_stick_solonoid.set(!right_stick_solonoid.value());
+
+
+    #endif
+  });
   con.ButtonB.pressed([](){
     #ifndef SKILLS // Disable sunroof locking in skills
     if(!sunroof_lock) 
@@ -270,6 +288,10 @@ void opcontrol() {
     
   vexDelay(10);
   }
+}
+
+void opcontrol() {
+  opcontrol_normal();
 }
 
 #ifdef TESTCODE

@@ -10,8 +10,8 @@ typedef dim<1, 1, -3, -1, 0, 0, 0, 0> dim_linear_proportional_gain;
 typedef dim<1, 1, -4, -1, 0, 0, 0, 0> dim_linear_integral_gain;
 typedef dim<1, 1, -2, -1, 0, 0, 0, 0> dim_linear_derivative_gain;
 typedef dim<1, 1, -1, -1, 0, 0, 0, 0> dim_linear_second_derivative_gain;
-typedef dim<-1, -2, 2, 1, 0, 0, 0, 1> dim_angular_velocity_feedforward;
-typedef dim<-1, -2, 1, 1, 0, 0, 0, 1> dim_angular_acceleration_feedforward;
+typedef dim<1, 2, -2, -1, 0, 0, 0, -1> dim_angular_velocity_feedforward;
+typedef dim<1, 2, -1, -1, 0, 0, 0, -1> dim_angular_acceleration_feedforward;
 typedef dim<1, 2, -3, -1, 0, 0, 0, -1> dim_angular_proportional_gain;
 typedef dim<1, 2, -4, -1, 0, 0, 0, -1> dim_angular_integral_gain;
 typedef dim<1, 2, -2, -1, 0, 0, 0, -1> dim_angular_derivative_gain;
@@ -47,17 +47,17 @@ typedef dim<1, 2, -1, -1, 0, 0, 0, -1> dim_angular_second_derivative_gain;
     volt_seconds_squared_per_inch_tag, 5000, 127)
 
 #define UNITS_ANGULAR_VELOCITY_FEEDFORWARD_TABLE(X, context)                                   \
-  X(context, radpspV, radians_per_second_per_volt, radians_per_second_per_volt_tag, 1, 1)      \
-  X(context, degpspV, degrees_per_second_per_volt, degrees_per_second_per_volt_tag,            \
-    17453292519943295.0, 1000000000000000000.0)
+  X(context, VpRadPs, volts_per_radian_per_second, volts_per_radian_per_second_tag, 1, 1)      \
+  X(context, VpDegPs, volts_per_degree_per_second, volts_per_degree_per_second_tag,            \
+    5729577951308232.0, 100000000000000.0)
 
 #define UNITS_ANGULAR_ACCELERATION_FEEDFORWARD_TABLE(X, context)                               \
-  X(context, radps2pV, radians_per_second_squared_per_volt,                                    \
-    radians_per_second_squared_per_volt_tag,                                                   \
+  X(context, VpRadPs2, volts_per_radian_per_second_squared,                                    \
+    volts_per_radian_per_second_squared_tag,                                                   \
     1, 1)                                                                                      \
-  X(context, degps2pV, degrees_per_second_squared_per_volt,                                    \
-    degrees_per_second_squared_per_volt_tag,                                                   \
-    17453292519943295.0, 1000000000000000000.0)
+  X(context, VpDegPs2, volts_per_degree_per_second_squared,                                    \
+    volts_per_degree_per_second_squared_tag,                                                   \
+    5729577951308232.0, 100000000000000.0)
 
 #define UNITS_ANGULAR_PROPORTIONAL_GAIN_TABLE(X, context)                                      \
   X(context, VpRad, volts_per_radian, volts_per_radian_tag, 1, 1)                              \
@@ -151,7 +151,7 @@ UNITS_DEFINE_SEMANTIC_ALIAS(
     LinearVelocityIntegralGain,
     dim_linear_proportional_gain,
     UNITS_LINEAR_PROPORTIONAL_GAIN_TABLE);
-UNITS_DEFINE_SEMANTIC_QUANTITY(
+UNITS_DEFINE_SEMANTIC_ALIAS(
     AngularVelocityFeedforward,
     dim_angular_velocity_feedforward,
     UNITS_ANGULAR_VELOCITY_FEEDFORWARD_TABLE);
@@ -163,7 +163,7 @@ UNITS_DEFINE_SEMANTIC_QUANTITY(
     AngularIntegralGain,
     dim_angular_integral_gain,
     UNITS_ANGULAR_INTEGRAL_GAIN_TABLE);
-UNITS_DEFINE_SEMANTIC_QUANTITY(
+UNITS_DEFINE_SEMANTIC_ALIAS(
     AngularAccelerationFeedforward,
     dim_angular_acceleration_feedforward,
     UNITS_ANGULAR_ACCELERATION_FEEDFORWARD_TABLE);
@@ -213,12 +213,12 @@ UNITS_DEFINE_DEFAULT_UNIT_TRAIT(
 UNITS_DEFINE_DEFAULT_UNIT_TRAIT(LinearVelocityIntegralGain, volts_per_meter_tag)
 UNITS_DEFINE_DEFAULT_UNIT_TRAIT(
     AngularVelocityFeedforward,
-    radians_per_second_per_volt_tag)
+    volts_per_radian_per_second_tag)
 UNITS_DEFINE_DEFAULT_UNIT_TRAIT(AngularProportionalGain, volts_per_radian_tag)
 UNITS_DEFINE_DEFAULT_UNIT_TRAIT(AngularIntegralGain, volts_per_radian_second_tag)
 UNITS_DEFINE_DEFAULT_UNIT_TRAIT(
     AngularAccelerationFeedforward,
-    radians_per_second_squared_per_volt_tag)
+    volts_per_radian_per_second_squared_tag)
 UNITS_DEFINE_DEFAULT_UNIT_TRAIT(AngularDerivativeGain, volt_seconds_per_radian_tag)
 UNITS_DEFINE_DEFAULT_UNIT_TRAIT(AngularVelocityProportionalGain, volt_seconds_per_radian_tag)
 UNITS_DEFINE_DEFAULT_UNIT_TRAIT(
@@ -253,12 +253,8 @@ UNITS_DEFINE_TABLE_LITERALS(
 
 UNITS_DEFINE_LITERAL_PAIR(_VpMPs, LinearDerivativeGain::from<volt_seconds_per_meter_tag>(static_cast<double>(value)));
 UNITS_DEFINE_LITERAL_PAIR(_VpInPs, LinearDerivativeGain::from<volt_seconds_per_inch_tag>(static_cast<double>(value)));
-UNITS_DEFINE_LITERAL_PAIR(_VpRadPs, AngularDerivativeGain::from<volt_seconds_per_radian_tag>(static_cast<double>(value)));
-UNITS_DEFINE_LITERAL_PAIR(_VpDegPs, AngularDerivativeGain::from<volt_seconds_per_degree_tag>(static_cast<double>(value)));
 UNITS_DEFINE_LITERAL_PAIR(_VpMPs2, LinearVelocityDerivativeGain::from<volt_seconds_squared_per_meter_tag>(static_cast<double>(value)));
 UNITS_DEFINE_LITERAL_PAIR(_VpInPs2, LinearVelocityDerivativeGain::from<volt_seconds_squared_per_inch_tag>(static_cast<double>(value)));
-UNITS_DEFINE_LITERAL_PAIR(_VpRadPs2, AngularVelocityDerivativeGain::from<volt_seconds_squared_per_radian_tag>(static_cast<double>(value)));
-UNITS_DEFINE_LITERAL_PAIR(_VpDegPs2, AngularVelocityDerivativeGain::from<volt_seconds_squared_per_degree_tag>(static_cast<double>(value)));
 
 }  // namespace literals
 

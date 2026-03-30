@@ -21,18 +21,21 @@ class TankDriveModel {
     typedef ObserverPlant::VectorX ObserverStateVector;
     typedef units::LinearVelocityFeedforward LinearKV;
     typedef units::LinearAccelerationFeedforward LinearKA;
-    typedef units::AngularVelocityProportionalGain AngularKV;
-    typedef units::AngularVelocityDerivativeGain AngularKA;
+    typedef units::AngularVelocityFeedforward AngularKV;
+    typedef units::AngularAccelerationFeedforward AngularKA;
+    typedef units::Voltage WheelKS;
 
     TankDriveModel(
       units::Length trackwidth,
       units::Voltage max_voltage,
+      WheelKS kS,
       LinearKV kV_linear,
       LinearKA kA_linear,
       AngularKV kV_angular,
       AngularKA kA_angular)
         : trackwidth_(trackwidth),
           max_voltage_(max_voltage),
+          kS_(kS),
           kV_linear_(kV_linear),
           kA_linear_(kA_linear),
           kV_angular_(kV_angular),
@@ -40,16 +43,24 @@ class TankDriveModel {
 
     units::Length trackwidth() const { return trackwidth_; }
     units::Voltage max_voltage() const { return max_voltage_; }
+    WheelKS kS() const { return kS_; }
     LinearKV kV_linear() const { return kV_linear_; }
     LinearKA kA_linear() const { return kA_linear_; }
     AngularKV kV_angular() const { return kV_angular_; }
     AngularKA kA_angular() const { return kA_angular_; }
 
+    EVec<2> wheel_stiction_voltages(const StateVector &wheel_velocity_ref) const {
+        return EVec<2>{
+          kS_.V() * signum(wheel_velocity_ref(0)),
+          kS_.V() * signum(wheel_velocity_ref(1)),
+        };
+    }
+
     Plant chassis_plant() const {
         const double linear_kv = kV_linear_.VpInps();
         const double linear_ka = kA_linear_.VpInps2();
-        const double angular_kv = kV_angular_.VspRad();
-        const double angular_ka = kA_angular_.Vs2pRad();
+        const double angular_kv = kV_angular_.VpRadPs();
+        const double angular_ka = kA_angular_.VpRadPs2();
 
         const Plant::MatrixA A{
           {-linear_kv / linear_ka, 0.0},
@@ -172,8 +183,19 @@ class TankDriveModel {
     }
 
   private:
+    static double signum(double value) {
+        if (value > 0.0) {
+            return 1.0;
+        }
+        if (value < 0.0) {
+            return -1.0;
+        }
+        return 0.0;
+    }
+
     units::Length trackwidth_;
     units::Voltage max_voltage_;
+    WheelKS kS_;
     LinearKV kV_linear_;
     LinearKA kA_linear_;
     AngularKV kV_angular_;

@@ -1,9 +1,11 @@
 #include "robot-config.h"
 #include "core/subsystems/odometry/odometry_lidar_wrapper.h"
 #include "core/subsystems/screen.h"
+#include "core/units/types/geometry.h"
 #include "core/utils/command_structure/auto_command.h"
 #include "core/utils/controls/feedforward.h"
 #include "core/utils/controls/motion_controller.h"
+#include "core/utils/controls/state_space/tank_drive_sysid.h"
 #include "core/utils/math/geometry/rotation2d.h"
 #include "core/utils/controls/pidff.h"
 #include <cstdio>
@@ -106,8 +108,9 @@ robot_specs_t config = {
 TankDriveModel drive_model(
   Length::from<inch_tag>(11.8),
   12_V,
-  0.189_VpInPs,
-  0.0416_VpInPs2,
+  0_V,
+  0.175_VpInPs,
+  0.042_VpInPs2,
   1.23_VpRadPs,
   0.20651_VpRadPs2
 );
@@ -151,6 +154,8 @@ struct pose_timestamp {
 };
 
 
+
+
 /*                 144
  * y /---------------\ 144
  *   |    90deg      |
@@ -175,6 +180,22 @@ void robot_init() {
  while(imu.isCalibrating()){
     vexDelay(10);
  }
+    drive_observer.set_measurement_provider(
+      [](units::Length &left_pos, units::Velocity &left_vel, units::Length &right_pos, units::Velocity &right_vel) {
+        const double left_pos_in =
+          (left_motors.position(vex::rotationUnits::rev) / config.odom_gear_ratio) * M_PI * config.odom_wheel_diam;
+        const double right_pos_in = (right_motors.position(vex::rotationUnits::rev) / config.odom_gear_ratio) * M_PI * config.odom_wheel_diam;
+        const double left_vel_inps = (left_motors.velocity(vex::velocityUnits::rpm) / 60.0 / config.odom_gear_ratio) *
+                                     M_PI * config.odom_wheel_diam;
+        const double right_vel_inps = (right_motors.velocity(vex::velocityUnits::rpm) / 60.0 / config.odom_gear_ratio) *
+                                      M_PI * config.odom_wheel_diam;
+
+        left_pos = units::Length::from<units::inch_tag>(left_pos_in);
+        right_pos = units::Length::from<units::inch_tag>(right_pos_in);
+        left_vel = units::Velocity::from<units::inches_per_second_tag>(left_vel_inps);
+        right_vel = units::Velocity::from<units::inches_per_second_tag>(right_vel_inps);
+      });
+    drive_observer.start_async();
 
   std::vector<screen::Page *> pages = {
     new screen::StatsPage({
@@ -194,6 +215,38 @@ void robot_init() {
   screen::start_screen(Brain.Screen, pages);
   odom.set_position(auto_start_pose);
   printf("started\n");
+
+  //
+  // Time t = 0_s;
+  // Time end = 5_s;
+  // int i = 0;
+  // std::vector<std::tuple<Time, Voltage, Velocity>> out;
+  // while (t < end) {
+  //   left_motors.spin(vex::forward, 1 * t.s(), voltageUnits::volt);
+  //   right_motors.spin(vex::forward, 1 * t.s(), voltageUnits::volt);
+  //
+  //
+  //   double lvel = deg2rad(left_motors.velocity(vex::dps)) * config.odom_wheel_diam / 2.0;
+  //   double rvel = deg2rad(right_motors.velocity(vex::dps)) * config.odom_wheel_diam / 2.0;
+  //   double vel_inps = (lvel + rvel) / 2.0;
+  //
+  //   out.push_back(std::tuple<Time, Voltage, Velocity>{t, 1_V * t.s(), Velocity::from<inches_per_second_tag>(vel_inps)});
+  //
+  //   vexDelay(10);
+  //   if (i % 10 == 0) {
+  //     printf("volts: %0.03f\n", 1 * t.s());
+  //   }
+  //
+  //   t += 10_ms;
+  //   i++;
+  // }
+  // left_motors.stop(vex::brakeType::brake);
+  // right_motors.stop(vex::brakeType::brake);
+  //
+  // for (auto var : out) {
+  //   printf("%0.03f, %0.03f, %0.03f\n", std::get<0>(var).seconds(), std::get<1>(var).volts(), std::get<2>(var).inps());
+  //   vexDelay(100);
+  // }
 
 
   init_us = vexSystemHighResTimeGet();

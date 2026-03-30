@@ -66,6 +66,31 @@ void print_trajectory_runtime_row(
 
 }  // namespace
 
+void TankDrive::print_trajectory_log() {
+    printf(
+      "t,ref_x,ref_y,ref_hdg,ref_lv,ref_rv,"
+      "robot_x,robot_y,robot_hdg,act_lv,act_rv,raw_lv,raw_rv,"
+      "ff_l,ff_r,fb_l,fb_r,cmd_l,cmd_r\n"
+    );
+    fflush(stdout);
+    for (const TrajectoryLogRow &row : trajectory_log) {
+        printf(
+          "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
+          row.t,
+          row.ref_x, row.ref_y, row.ref_heading,
+          row.ref_left_vel, row.ref_right_vel,
+          row.robot_x, row.robot_y, row.robot_heading,
+          row.actual_left_vel, row.actual_right_vel,
+          row.raw_left_vel, row.raw_right_vel,
+          row.ff_left, row.ff_right,
+          row.fb_left, row.fb_right,
+          row.cmd_left, row.cmd_right
+        );
+        fflush(stdout);
+        vexDelay(100);
+    }
+}
+
 TankDrive::TankDrive(
   motor_group &left_motors,
   motor_group &right_motors,
@@ -300,7 +325,9 @@ Voltage TankDrive::forward_back_input_to_common_mode_voltage(double forward_back
     }
 
     const Velocity target_velocity = forward_back_input_to_linear_velocity(forward_back);
-    return Voltage::from<volt_tag>(drive_model->kV_linear().VpInps() * target_velocity.inps());
+    const TankDriveModel::StateVector wheel_ref = drive_model->chassis_to_wheels(target_velocity, 0_radps);
+    const EVec<2> ks = drive_model->wheel_stiction_voltages(wheel_ref);
+    return Voltage::from<volt_tag>(drive_model->kV_linear().VpInps() * target_velocity.inps() + ks(0));
 }
 
 void TankDrive::drive_line(
@@ -348,6 +375,7 @@ void TankDrive::drive_line(
     TankDriveModel::Plant plant = drive_model->wheel_plant();
     LinearPlantInversionFeedforward<2, 2> feedforward(plant, cfg.dt.s());
     const EVec<2> ff = feedforward.calculate(wheel_ref, wheel_ref, cfg.dt.s());
+    const EVec<2> ks = drive_model->wheel_stiction_voltages(wheel_ref);
 
     const double observer_left_vel = get_left_velocity();
     const double observer_right_vel = get_right_velocity();
@@ -360,8 +388,8 @@ void TankDrive::drive_line(
       Velocity::from<inches_per_second_tag>(wheel_ref(1)));
 
     const double max_voltage = drive_model->max_voltage().V();
-    const double commanded_left = clamp(ff(0) + volts.left.V(), -max_voltage, max_voltage);
-    const double commanded_right = clamp(ff(1) + volts.right.V(), -max_voltage, max_voltage);
+    const double commanded_left = clamp(ff(0) + ks(0) + volts.left.V(), -max_voltage, max_voltage);
+    const double commanded_right = clamp(ff(1) + ks(1) + volts.right.V(), -max_voltage, max_voltage);
     drive_tank_voltage(commanded_left, commanded_right);
 }
 
@@ -1045,23 +1073,23 @@ bool TankDrive::follow_trajectory(const Trajectory &trajectory, const TankTrajec
             logger->define_and_send_schema(0x05, "time:u64, x:f32, y:f32, t:f32");
         }
         trajectory_timer.reset();
+        const Trajectory::State t0 = trajectory.sample(Time::from<second_tag>(0.0));
+        trajectory_prev_wheel_ref = drive_model->chassis_to_wheels(t0.velocity, t0.velocity * t0.curvature);
+        trajectory_log.clear();
         func_initialized = true;
     }
 
     const Time elapsed = Time::from<second_tag>(trajectory_timer.time(sec));
-    const Time next_t = min(elapsed + cfg.dt, trajectory.total_time());
-    const double dt_step = (next_t - elapsed).s();
     const Trajectory::State ref = trajectory.sample(elapsed);
-    const Trajectory::State next_ref = trajectory.sample(next_t);
 
     const AngularVelocity ref_omega = ref.velocity * ref.curvature;
-    const AngularVelocity next_ref_omega = next_ref.velocity * next_ref.curvature;
     const TankDriveModel::StateVector wheel_ref = drive_model->chassis_to_wheels(ref.velocity, ref_omega);
-    const TankDriveModel::StateVector next_wheel_ref = drive_model->chassis_to_wheels(next_ref.velocity, next_ref_omega);
 
     TankDriveModel::Plant plant = drive_model->wheel_plant();
     LinearPlantInversionFeedforward<2, 2> feedforward(plant, cfg.dt.s());
-    const EVec<2> ff = feedforward.calculate(wheel_ref, next_wheel_ref, dt_step);
+    const EVec<2> ff = feedforward.calculate(trajectory_prev_wheel_ref, wheel_ref, cfg.dt.s());
+    const EVec<2> ks = drive_model->wheel_stiction_voltages(wheel_ref);
+    trajectory_prev_wheel_ref = wheel_ref;
 
     const Pose2d current_pose = odometry->get_position();
     const double observer_left_vel = get_left_velocity();
@@ -1077,8 +1105,8 @@ bool TankDrive::follow_trajectory(const Trajectory &trajectory, const TankTrajec
       Velocity::from<inches_per_second_tag>(wheel_ref(1)));
 
     const double max_voltage = drive_model->max_voltage().V();
-    const double commanded_left = clamp(ff(0) + volts.left.V(), -max_voltage, max_voltage);
-    const double commanded_right = clamp(ff(1) + volts.right.V(), -max_voltage, max_voltage);
+    const double commanded_left = clamp(ff(0) + ks(0) + volts.left.V(), -max_voltage, max_voltage);
+    const double commanded_right = clamp(ff(1) + ks(1) + volts.right.V(), -max_voltage, max_voltage);
 
     if (logger != NULL) {
         logger->build(0x05)
@@ -1100,6 +1128,18 @@ bool TankDrive::follow_trajectory(const Trajectory &trajectory, const TankTrajec
 
     drive_tank_voltage(commanded_left, commanded_right);
 
+    trajectory_log.push_back({
+      (float)elapsed.s(),
+      (float)ref.pose.x(), (float)ref.pose.y(), (float)ref.pose.rotation().wrapped_degrees_360(),
+      (float)wheel_ref(0), (float)wheel_ref(1),
+      (float)current_pose.x(), (float)current_pose.y(), (float)current_pose.rotation().wrapped_degrees_360(),
+      (float)observer_left_vel, (float)observer_right_vel,
+      (float)raw_left_velocity(), (float)raw_right_velocity(),
+      (float)ff(0), (float)ff(1),
+      (float)volts.left.V(), (float)volts.right.V(),
+      (float)commanded_left, (float)commanded_right,
+    });
+
     if (elapsed >= trajectory.total_time()) {
         const bool at_reference = trajectory_controller->at_reference();
         const bool settle_window_expired =
@@ -1119,6 +1159,7 @@ bool TankDrive::follow_trajectory(const Trajectory &trajectory, const TankTrajec
             if (cfg.stop_at_end) {
                 stop();
             }
+            print_trajectory_log();
             reset_auto();
             return true;
         }
@@ -1165,6 +1206,10 @@ bool TankDrive::follow_trajectory_open_loop(const Trajectory &trajectory, bool s
     TankDriveModel::Plant plant = drive_model->wheel_plant();
     LinearPlantInversionFeedforward<2, 2> feedforward(plant, 0.01);
     const EVec<2> ff = feedforward.calculate(wheel_ref, next_wheel_ref, dt_step);
+    const EVec<2> ks = drive_model->wheel_stiction_voltages(next_wheel_ref);
+    const double max_voltage = drive_model->max_voltage().V();
+    const double commanded_left = clamp(ff(0) + ks(0), -max_voltage, max_voltage);
+    const double commanded_right = clamp(ff(1) + ks(1), -max_voltage, max_voltage);
 
     if (logger != NULL) {
         logger->build(0x05)
@@ -1181,10 +1226,10 @@ bool TankDrive::follow_trajectory_open_loop(const Trajectory &trajectory, bool s
       current_pose,
       chassis_state(0),
       chassis_state(1),
-      ff(0),
-      ff(1));
+      commanded_left,
+      commanded_right);
 
-    drive_tank_voltage(ff(0), ff(1));
+    drive_tank_voltage(commanded_left, commanded_right);
 
     if (elapsed >= trajectory.total_time()) {
         if (stop_at_end) {
