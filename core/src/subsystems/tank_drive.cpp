@@ -87,7 +87,7 @@ void TankDrive::print_trajectory_log() {
           row.cmd_left, row.cmd_right
         );
         fflush(stdout);
-        vexDelay(100);
+        vexDelay(2);
     }
 }
 
@@ -227,6 +227,7 @@ void TankDrive::reset_auto() {
     trajectory_settle_checking = false;
     trajectory_settle_start = 0.0;
     trajectory_print_row = 0;
+    line_prev_velocity_ref = 0_inps;
     func_initialized = false;
     delete trajectory_controller;
     trajectory_controller = NULL;
@@ -359,6 +360,7 @@ void TankDrive::drive_line(
           cfg.dt,
           cfg.max_velocity,
           cfg.velocity_step);
+        line_prev_velocity_ref = 0_inps;
         func_initialized = true;
     }
 
@@ -369,7 +371,11 @@ void TankDrive::drive_line(
     const Translation2d projected_point = line_point + line_direction * (line_offset * line_direction);
     const Pose2d pose_ref(projected_point.x(), projected_point.y(), line_heading);
 
-    const Velocity line_velocity_ref = forward_back_input_to_linear_velocity(forward_back * 0.6);
+    const Velocity target_line_velocity_ref = forward_back_input_to_linear_velocity(forward_back);
+    const Velocity velocity_delta =
+      clamp(target_line_velocity_ref - line_prev_velocity_ref, -2_inps, 2_inps);
+    const Velocity line_velocity_ref = line_prev_velocity_ref + velocity_delta;
+    line_prev_velocity_ref = line_velocity_ref;
     const TankDriveModel::StateVector wheel_ref = drive_model->chassis_to_wheels(line_velocity_ref, 0_radps);
 
     TankDriveModel::Plant plant = drive_model->wheel_plant();
@@ -1159,7 +1165,7 @@ bool TankDrive::follow_trajectory(const Trajectory &trajectory, const TankTrajec
             if (cfg.stop_at_end) {
                 stop();
             }
-            print_trajectory_log();
+            // print_trajectory_log();
             reset_auto();
             return true;
         }

@@ -187,12 +187,12 @@ class TankDriveObserver {
     const StateVector &xhat() const { return filter_.xhat(); }
 
     static StateVector default_state_stddevs() {
-        StateVector q{0.1, 2.0, 0.1, 2.0};
+        StateVector q{0.01, .5, 0.01, .5};
         return q;
     }
 
     static OutputVector default_measurement_stddevs() {
-        OutputVector r{0.02, 2.0, 0.02, 2.0};
+        OutputVector r{0.03, 2.0, 0.03, 2.0};
         return r;
     }
 

@@ -435,6 +435,7 @@ class TankDrive {
     TankDriveObserver *drive_observer = NULL;
     LTVDifferentialDriveController *trajectory_controller = NULL;
     TankDriveModel::StateVector trajectory_prev_wheel_ref = TankDriveModel::StateVector::Zero();
+    Velocity line_prev_velocity_ref = 0_inps;
     std::vector<TrajectoryLogRow> trajectory_log;
     vex::timer trajectory_timer;
     bool trajectory_settle_checking = false;

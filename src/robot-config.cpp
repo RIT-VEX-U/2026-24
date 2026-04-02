@@ -41,7 +41,7 @@ vex::motor frontroller(PORT9, vex::gearSetting::ratio6_1, false);
 vex::motor backroller(PORT1, vex::gearSetting::ratio6_1, false);
 vex::motor toproller(PORT16, vex::gearSetting::ratio6_1, false);
 vex::motor agitatorroller(PORT17, vex::gearSetting::ratio6_1, false);
-vex::motor backscoreroller(PORT11, vex::gearSetting::ratio6_1, false);
+vex::motor backscoreroller(PORT11, vex::gearSetting::ratio6_1, true);
 
 vex::digital_out zlight_board{Brain.ThreeWirePort.A};
 vex::digital_out upper_light_board{Brain.ThreeWirePort.D};
@@ -111,8 +111,8 @@ TankDriveModel drive_model(
   0_V,
   0.175_VpInPs,
   0.042_VpInPs2,
-  1.23_VpRadPs,
-  0.20651_VpRadPs2
+  1.2_VpRadPs,
+  0.1951_VpRadPs2
 );
 
 TankDriveObserver drive_observer(drive_model, 10_ms);
@@ -121,11 +121,11 @@ TankTrajectoryFollowerConfig trajectory_follower_config;
 
 TankTrajectoryFollowerConfig line_cfg = [] {
   TankTrajectoryFollowerConfig cfg;
-  cfg.q_tolerances = {{5, 1.5, 0.3, 20, 20}};
+  cfg.q_tolerances = {{5, 1, 0.06, 30, 30}};
   cfg.r_tolerances = {{12, 12}};
   cfg.dt = 10_ms;
   cfg.max_velocity = 0_inps;
-  cfg.velocity_step = 0.2_inps;
+  cfg.velocity_step = 0.1_inps;
   cfg.stop_at_end = false;
   return cfg;
 }();
@@ -253,6 +253,7 @@ void robot_init() {
   
   lidar.start();
   lidar.reset_ukf(auto_start_pose);
+  con.Screen.print("started");
   bool logger_schema_sent = false;
   while (true) {
     if (!logger.is_connected()) {

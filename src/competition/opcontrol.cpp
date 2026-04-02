@@ -7,7 +7,10 @@
 #include "robot-config.h"
 #include "competition/autonomous.h"
 #include <cstdio>
+#include <algorithm>
 #include "core/utils/trajectory/trajectory.h"
+#include "core/utils/controls/trapezoid_profile.h"
+#include "core/utils/controls/state_space/linear_plant_inversion_feedforward.h"
 #include "core/utils/trajectory/constraints/centripetal_acceleration_constraint.h"
 #include "core/utils/trajectory/constraints/tank_voltage_constraint.h"
 
@@ -23,6 +26,69 @@ void PID_Tuning();
 bool enable_drive = true;
 bool sunroof_lock = false;
 vex::timer input_timer;
+
+namespace {
+
+constexpr double kOpenLoopTurnTargetHeadingDeg = 90.0;
+constexpr double kOpenLoopTurnDt = 0.01;
+constexpr auto kOpenLoopTurnMaxAngularVelocity = 6.0_radps;
+constexpr auto kOpenLoopTurnMaxAngularAcceleration = 10.0_radps2;
+
+void run_open_loop_turn_to_heading(
+  double target_heading_deg,
+  units::AngularVelocity max_angular_velocity,
+  units::AngularAcceleration max_angular_acceleration) {
+  const double current_heading_deg = odom.get_position().rotation().degrees();
+  const double delta_heading_deg = OdometryBase::smallest_angle(current_heading_deg, target_heading_deg);
+
+  if (std::abs(delta_heading_deg) < 1e-6) {
+    drive_sys.stop();
+    return;
+  }
+
+  TrapezoidProfile profile(
+    0.0,
+    deg2rad(delta_heading_deg),
+    max_angular_velocity.radps(),
+    max_angular_acceleration.radps2(),
+    max_angular_acceleration.radps2());
+
+  TankDriveModel::Plant plant = drive_model.wheel_plant();
+  LinearPlantInversionFeedforward<2, 2> feedforward(plant, kOpenLoopTurnDt);
+  vex::timer timer;
+
+  while (true) {
+    const double elapsed = timer.time(vex::sec);
+    const double next_t = std::min(elapsed + kOpenLoopTurnDt, profile.total_time());
+    const motion_t current = profile.calculate(elapsed);
+    const motion_t next = profile.calculate(next_t);
+
+    const TankDriveModel::StateVector wheel_ref = drive_model.chassis_to_wheels(
+      0_inps,
+      units::AngularVelocity::from<units::radians_per_second_tag>(current.vel));
+    const TankDriveModel::StateVector next_wheel_ref = drive_model.chassis_to_wheels(
+      0_inps,
+      units::AngularVelocity::from<units::radians_per_second_tag>(next.vel));
+
+    const EVec<2> ff = feedforward.calculate(wheel_ref, next_wheel_ref, next_t - elapsed);
+    const EVec<2> ks = drive_model.wheel_stiction_voltages(next_wheel_ref);
+    const double max_voltage = drive_model.max_voltage().V();
+    const double commanded_left = clamp(ff(0) + ks(0), -max_voltage, max_voltage);
+    const double commanded_right = clamp(ff(1) + ks(1), -max_voltage, max_voltage);
+
+    drive_sys.drive_tank_voltage(commanded_left, commanded_right);
+
+    if (elapsed >= profile.total_time()) {
+      break;
+    }
+
+    vexDelay(static_cast<int>(kOpenLoopTurnDt * 1000.0));
+  }
+
+  drive_sys.stop();
+}
+
+}  // namespace
 
 Trajectory make_example_curveo() {
   
@@ -40,9 +106,9 @@ Trajectory make_example_curveo() {
     HermitePoint::from_heading(cx, cy + radius, 0.0, tangent_mag),
   };
 
-  TrajectoryConfig config(80.000_inps, 80.000_inps2);
+  TrajectoryConfig config(80.000_inps, 20.000_inps2);
   config.set_start_velocity(0.000_inps);
-  config.set_end_velocity(40.000_inps);
+  config.set_end_velocity(20.000_inps);
   config.set_reversed(false);
   config.set_track_width(11.8_in);
   config.add_constraint(CentripetalAccelerationConstraint(100.000_inps2));
@@ -183,25 +249,34 @@ void opcontrol_normal() {
     enable_drive = true;
   });
   #endif
-    con.ButtonUp.pressed([]() {
-        enable_drive = false;
-        Trajectory traj = make_example_curveo();
-        CommandController cc{
-          drive_sys.FollowTrajectoryCmd(traj, trajectory_follower_config),
-          // drive_sys.FollowTrajectoryOpenLoopCmd(make_example_lineo()),
-        };
-        cc.run();
-        enable_drive = true;
-    });
-  con.ButtonX.pressed([](){
-    #ifdef SKILLS // Hopperreturn in skills, stick in driver
-    intake_sys.hopperreturn();
-    #else
-    // right_stick_solonoid.set(!right_stick_solonoid.value());
+  con.ButtonUp.pressed([]() {
+    // enable_drive = false;
+    // Trajectory traj = make_example_curveo();
+    // CommandController cc{
+    //   drive_sys.FollowTrajectoryCmd(traj, trajectory_follower_config),
+    //   // drive_sys.FollowTrajectoryOpenLoopCmd(make_example_lineo()),
+    // };
+    // cc.run();
+    // enable_drive = true;
 
+    // enable_drive = false;
+    // run_open_loop_turn_to_heading(
+    //   kOpenLoopTurnTargetHeadingDeg,
+    //   kOpenLoopTurnMaxAngularVelocity,
+    //   kOpenLoopTurnMaxAngularAcceleration);
+    // enable_drive = true;
 
-    #endif
+    right_stick_solonoid.set(!right_stick_solonoid.value());
   });
+  // con.ButtonX.pressed([](){
+  //   #ifdef SKILLS // Hopperreturn in skills, stick in driver
+  //   intake_sys.hopperreturn();
+  //   #else
+  //   // right_stick_solonoid.set(!right_stick_solonoid.value());
+  //
+  //
+  //   #endif
+  // });
   con.ButtonB.pressed([](){
     #ifndef SKILLS // Disable sunroof locking in skills
     if(!sunroof_lock) 
@@ -278,11 +353,23 @@ void opcontrol_normal() {
         right = 0;
       }
       if(enable_drive){
-        #ifdef ARCADE
-        drive_sys.drive_arcade(left, right);
-        #else
-        drive_sys.drive_tank(left,right);
-        #endif
+        if (con.ButtonX.pressing()) {
+          if (odom.get_position().y() < 23.75) {
+            drive_sys.drive_line(left, {11, 11}, from_degrees(0), line_cfg);
+          } else if (odom.get_position().y() < 72) {
+            drive_sys.drive_line(left, {36.2, 36.2}, from_degrees(180), line_cfg);
+          } else if (odom.get_position().y() < 118) {
+            drive_sys.drive_line(left, {105.8, 105.8}, from_degrees(0), line_cfg);
+          } else {
+            drive_sys.drive_line(left, {130.5, 130.5}, from_degrees(180), line_cfg);
+          }
+        } else {
+          #ifdef ARCADE
+          drive_sys.drive_arcade(left, right);
+          #else
+          drive_sys.drive_tank(left,right);
+          #endif
+        }
       }
     }
     
