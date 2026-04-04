@@ -230,8 +230,6 @@ EVec<3> LidarReceiver::get_robot_velocity() {
     double vx = (left_vel + right_vel) / 2.0;
     double vy = 0.0;
     double omega = deg2rad(imu->gyroRate(vex::axisType::yaxis, vex::dps));
-
-    printf("omega: %0.03f\n", rad2deg(omega));
     
     return EVec<3>{vx, vy, omega};
 }

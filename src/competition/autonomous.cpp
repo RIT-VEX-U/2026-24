@@ -8,9 +8,11 @@
 #include "robot-config.h"
 #include <vex_global.h>
 
+#include "core/utils/trajectory/trajectory.h"
+
 #define LOG 3
 
-void (*autonomous)() = left_auto_path;
+void (*autonomous)() = right_auto_path;
 
 // --- AutoCommands ---
 
@@ -28,35 +30,71 @@ AutoCommand *DriveTankRawCmd(double left, double right) {
   });
 }
 
+Trajectory spawn_to_right_loader() {  
+  std::vector<HermitePoint> points = {
+    {19.500, 55.000, 0.000, -30.000},
+    {14.000, 25.000, -90.000, -2.000},
+  };
+
+  TrajectoryConfig config(70.000_inps, 70.000_inps2);
+  config.set_start_velocity(0.000_inps);
+  config.set_end_velocity(20.000_inps);
+  config.set_reversed(false);
+  config.set_track_width(11.8_in);
+  config.add_constraint(CentripetalAccelerationConstraint(100.000_inps2));
+  config.add_constraint(TankVoltageConstraint(0.175_VpInPs, 0.042_VpInPs2, 12.000_V, 12.000_in));
+  Trajectory trajectory = TrajectoryGenerator::generate_trajectory(points, config);
+
+  return trajectory;
+}
+
+Trajectory right_loader_to_goal() {  
+  std::vector<HermitePoint> points = {
+    {12.000, 25.000, 30.000, 0.000},
+    {32.000, 23.750, 20.000, 0.000},
+    {42.000, 23.750, 20.000, 0.000},
+  };
+
+  TrajectoryConfig config(80.000_inps, 80.000_inps2);
+  config.set_start_velocity(0.000_inps);
+  config.set_end_velocity(20.000_inps);
+  config.set_reversed(true);
+  config.set_track_width(11.8_in);
+  config.add_constraint(CentripetalAccelerationConstraint(180.000_inps2));
+  config.add_constraint(TankVoltageConstraint(0.175_VpInPs, 0.042_VpInPs2, 12.000_V, 12.000_in));
+  Trajectory trajectory = TrajectoryGenerator::generate_trajectory(points, config);
+
+  return trajectory;
+}
+
 // --- Paths ---
 
 void right_auto_path() {
   printf("Build %d\n", LOG);
   intake_sys.auto_fix_jamming(true);
   CommandController cc{
-    new Async(new FunctionCommand([]() {
-      while (true) {
-        printf(
-          "ODO X: %f ODO Y: %f, ODO ROT: %f\n", odom.get_position().x(),
-          odom.get_position().y(), odom.get_position().rotation().degrees()
-        );
-        vexDelay(100);
-      }
-      return true;
-      }) ),
+    // new Async(new FunctionCommand([]() {
+    //   while (true) {
+    //     printf(
+    //       "ODO X: %f ODO Y: %f, ODO ROT: %f\n", odom.get_position().x(),
+    //       odom.get_position().y(), odom.get_position().rotation().degrees()
+    //     );
+    //     vexDelay(100);
+    //   }
+    //   return true;
+    //   }) ),
     
     // Starts at {19.5, 54, from_degrees(270)}
     // Matchloader
 
     intake_sys.MatchLoaderCmd(true),
-    drive_sys.DriveForwardCmd(31.75, vex::forward, 0.8)->withTimeout(1.5),
-    drive_sys.TurnToHeadingCmd(179 /*180*/, .8)->withTimeout(2.25),
     SunroofSolCmd(true),
     intake_sys.AutoLoadCmd(),
+    drive_sys.FollowTrajectoryCmd(spawn_to_right_loader(), trajectory_follower_config),
     DriveTankRawCmd(0.4, 0.4),
     new DelayCommand(600),
-    DriveTankRawCmd(0.1, 0.1),
-    new DelayCommand(4500),
+    DriveTankRawCmd(0.07, 0.07),
+    new DelayCommand(3000),
 
     // QUICK MATCHLOAD
     // intake_sys.MatchLoaderCmd(true),
@@ -74,17 +112,22 @@ void right_auto_path() {
 
     // Leaving Matchloader
     intake_sys.MatchLoaderCmd(false),
-    SunroofSolCmd(false),
     intake_sys.FrontPurgeCmd(),
 
     // Long goal (drive to and score)
-    drive_sys.TurnToHeadingCmd(180, 0.8)->withTimeout(.5),
+
     new Parallel({
-      (new InOrder({
-        drive_sys.DriveToPointCmd({43.25, 23.75}, vex::reverse, 0.8, 0.8)->withTimeout(2), 
-        DriveTankRawCmd(-0.45, -0.45)}))->withTimeout(3),
-      (new InOrder({new DelayCommand(650), intake_sys.OutBackCmd()}))->withTimeout(3),
+      drive_sys.FollowTrajectoryCmd(right_loader_to_goal(), trajectory_follower_config),
+      (new InOrder({new DelayCommand(200), SunroofSolCmd(false), new DelayCommand(550), intake_sys.OutBackCmd()}))->withTimeout(3),
     }),
+
+    // drive_sys.TurnToHeadingCmd(180, 0.8)->withTimeout(.5),
+    // new Parallel({
+    //   (new InOrder({
+    //     drive_sys.DriveToPointCmd({43.25, 23.75}, vex::reverse, 0.8, 0.8)->withTimeout(2), 
+    //     DriveTankRawCmd(-0.45, -0.45)}))->withTimeout(3),
+    //   (new InOrder({new DelayCommand(650), intake_sys.OutBackCmd()}))->withTimeout(3),
+    // }),
     new DelayCommand(2950),
 
     /*DriveTankRawCmd(0.5, 0.5),

@@ -1123,28 +1123,9 @@ bool TankDrive::follow_trajectory(const Trajectory &trajectory, const TankTrajec
           .send();
     }
 
-    print_trajectory_runtime_row(
-      trajectory_print_row++,
-      elapsed.s(),
-      current_pose,
-      chassis_state(0),
-      chassis_state(1),
-      commanded_left,
-      commanded_right);
 
     drive_tank_voltage(commanded_left, commanded_right);
 
-    trajectory_log.push_back({
-      (float)elapsed.s(),
-      (float)ref.pose.x(), (float)ref.pose.y(), (float)ref.pose.rotation().wrapped_degrees_360(),
-      (float)wheel_ref(0), (float)wheel_ref(1),
-      (float)current_pose.x(), (float)current_pose.y(), (float)current_pose.rotation().wrapped_degrees_360(),
-      (float)observer_left_vel, (float)observer_right_vel,
-      (float)raw_left_velocity(), (float)raw_right_velocity(),
-      (float)ff(0), (float)ff(1),
-      (float)volts.left.V(), (float)volts.right.V(),
-      (float)commanded_left, (float)commanded_right,
-    });
 
     if (elapsed >= trajectory.total_time()) {
         const bool at_reference = trajectory_controller->at_reference();

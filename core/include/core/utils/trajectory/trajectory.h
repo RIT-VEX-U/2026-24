@@ -7,6 +7,11 @@
 #include "core/units/units.h"
 #include "core/utils/math/geometry/pose2d.h"
 #include "core/utils/math_util.h"
+#include "core/utils/trajectory/constraints/trajectory_constraint.h"
+#include "core/utils/trajectory/constraints/centripetal_acceleration_constraint.h"
+#include "core/utils/trajectory/constraints/max_velocity_constraint.h"
+#include "core/utils/trajectory/constraints/tank_kinematics_constraint.h"
+#include "core/utils/trajectory/constraints/tank_voltage_constraint.h"
 
 class Trajectory {
  public:
