@@ -4,6 +4,7 @@
 #include "core/utils/command_structure/auto_command.h"
 #include "core/utils/command_structure/command_controller.h"
 #include "core/utils/command_structure/delay_command.h"
+#include "core/utils/math/geometry/rotation2d.h"
 #include "robot-config.h"
 #include "competition/autonomous.h"
 #include <cstdio>
@@ -282,6 +283,7 @@ void opcontrol_normal() {
 }
 
 void opcontrol() {
+  odom.set_position({42, 24, from_degrees(180)});
   opcontrol_normal();
 }
 
