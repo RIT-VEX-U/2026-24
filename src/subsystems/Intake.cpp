@@ -106,7 +106,7 @@ void IntakeSys::run_state_machine(bool sorting) {
 
   BlockColor currentBlock = seeing_color(low_optical_sensor);
   blocks_passed   = (intake_state == ESQUEBOT) ? blocks_passed : 0;
-  autoload_prefer = (intake_state == AUTOLOAD) ? autoload_prefer : BlockColor::NOTHING;
+  // autoload_prefer = (intake_state == AUTOLOAD) ? autoload_prefer : BlockColor::NOTHING;
   lightboard.set(intake_state == AUTOLOAD || intake_state == ESQUEBOT || do_color_sort);
   upper_lightboard.set(intake_state == ESQUEBOT);
   switch (intake_state) {
@@ -202,7 +202,9 @@ void IntakeSys::run_state_machine(bool sorting) {
         spin_motor(back_roller, -v, back_jammed);
       } else if(currentBlock != BlockColor::NOTHING) {  // Seeing opposing
         spin_motor(back_roller, v, back_jammed);
-      } // Seeing nothing defaults to previous state
+      } else { // Seeing nothing (used to default to previous state, now defaults to in)
+        spin_motor(back_roller, -v, back_jammed);
+      }
       
       break;
 

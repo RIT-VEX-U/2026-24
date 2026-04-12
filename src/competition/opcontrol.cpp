@@ -186,16 +186,16 @@ void opcontrol_normal() {
   // con.ButtonX.pressed([](){
   //     aimbot = !aimbot;
   // });
-  con.ButtonB.pressed([](){
+  con.ButtonX.pressed([](){
     #ifndef SKILLS // Disable sunroof locking in skills
     if(!sunroof_lock) 
     #endif
     sunroof_solonoid.set(!sunroof_solonoid.value());
   });
-  con.ButtonY.pressed([](){
+  con.ButtonA.pressed([](){
     intake_sys.match_load(!intake_sys.is_match_loading());
   });
-  con.ButtonA.pressed([](){
+  con.ButtonY.pressed([](){
     if(intake_sys.get_intake_state() == IntakeSys::AUTOLOAD) {
       intake_sys.match_load(false); // Raise matchloader
       intake_sys.lock_state(false); // Unlock intake state
@@ -213,6 +213,9 @@ void opcontrol_normal() {
       sunroof_solonoid.set(true);   // Lower sunroof
       intake_sys.match_load(true);  // Lower matchloader
       intake_sys.autoload();        // Automatic Match Load
+      #ifdef SKILLS
+      intake_sys.autoload_prefer = IntakeSys::BlockColor::NOTHING;
+      #endif
       intake_sys.lock_state();      // Lock intake state
     }
   });
@@ -239,7 +242,7 @@ void opcontrol_normal() {
 
     #ifndef SKILLS // Lock and unlock sunroof in driver, but not in skills
     if(intake_state == IntakeSys::ESQUESCORE) sunroof_lock = false;
-    if(intake_state != IntakeSys::FRONTPURGE && prev_state == IntakeSys::FRONTPURGE) {
+    if(intake_state != IntakeSys::FRONTPURGE && intake_state != IntakeSys::AUTOLOAD && prev_state == IntakeSys::FRONTPURGE) {
       sunroof_lock = false;
       sunroof_solonoid.set(false);
     }
@@ -262,7 +265,7 @@ void opcontrol_normal() {
         right = 0;
       }
 
-      aimbot = con.ButtonX.pressing();
+      aimbot = con.ButtonB.pressing();
       if(enable_drive){
         if (aimbot) {
           if (odom.get_position().y() < 23.75) {

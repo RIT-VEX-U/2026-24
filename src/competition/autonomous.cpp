@@ -12,7 +12,7 @@
 
 #define LOG 3
 
-void (*autonomous)() = right_auto_path;
+void (*autonomous)() = left_awp_path;
 
 // --- AutoCommands ---
 
@@ -29,6 +29,21 @@ AutoCommand *DriveTankRawCmd(double left, double right) {
     return true;
   });
 }
+
+AutoCommand *OdomLogCmd() {
+  return new Async(new FunctionCommand([]() {
+      while (true) {
+        printf(
+          "ODO X: %f ODO Y: %f, ODO ROT: %f\n", odom.get_position().x(),
+          odom.get_position().y(), odom.get_position().rotation().degrees()
+        );
+        vexDelay(100);
+      }
+      return true;
+    }) );
+}
+
+// --- Trajectories ---
 
 Trajectory spawn_to_right_loader() {  
   std::vector<HermitePoint> points = {
@@ -48,6 +63,24 @@ Trajectory spawn_to_right_loader() {
   return trajectory;
 }
 
+Trajectory spawn_to_left_loader() {
+  using namespace units::literals;
+
+  std::vector<HermitePoint> points = {
+    {19.500, 86.500, 0.000, 25.000},
+    {14.000, 115.250, -90.000, -1.000},
+  };
+
+  TrajectoryConfig config(60.000_inps, 70.000_inps2);
+  config.set_start_velocity(0.000_inps);
+  config.set_end_velocity(20.000_inps);
+  config.set_reversed(false);
+  config.set_track_width(11.8_in);
+  config.add_constraint(CentripetalAccelerationConstraint(100.000_inps2));
+  config.add_constraint(TankVoltageConstraint(0.175_VpInPs, 0.042_VpInPs2, 12.000_V, 12.000_in));
+  return TrajectoryGenerator::generate_trajectory(points, config);
+}
+
 Trajectory right_loader_to_goal() {  
   std::vector<HermitePoint> points = {
     {12.000, 25.000, 30.000, 0.000},
@@ -65,6 +98,23 @@ Trajectory right_loader_to_goal() {
   Trajectory trajectory = TrajectoryGenerator::generate_trajectory(points, config);
 
   return trajectory;
+}
+
+Trajectory left_loader_to_top_center_1() {
+  using namespace units::literals;
+
+  std::vector<HermitePoint> points = {
+    {12.500, 118.750, 30.000, 0.000},
+    {35.000, 80.000, -40.000, -50.000},
+  };
+
+  TrajectoryConfig config(60.000_inps, 60.000_inps2);
+  config.set_start_velocity(0.000_inps);
+  config.set_end_velocity(0.000_inps);
+  config.set_reversed(true);
+  config.add_constraint(CentripetalAccelerationConstraint(180.000_inps2));
+  config.add_constraint(TankVoltageConstraint(0.119_VpInps, 0.017_VpInps2, 12.000_V, 12.000_in));
+  return TrajectoryGenerator::generate_trajectory(points, config);
 }
 
 // --- Paths ---
@@ -141,6 +191,7 @@ void right_auto_path() {
 
 void left_auto_path() {
   printf("Build %d\n", LOG);
+  intake_sys.auto_fix_jamming(true);
   CommandController cc{
     new Async(new FunctionCommand([]() {
       while (true) {
@@ -186,6 +237,33 @@ void left_auto_path() {
     new DelayCommand(250),
     SunroofSolCmd(true),
     DriveTankRawCmd(-0.45, -0.45),
+  };
+
+  cc.run();
+}
+
+void left_awp_path() {
+  printf("Build %d\n", LOG);
+  CommandController cc{
+    OdomLogCmd(),
+
+    // Matchloader
+    intake_sys.MatchLoaderCmd(true),
+    SunroofSolCmd(true),
+    intake_sys.AutoLoadCmd(),
+    drive_sys.FollowTrajectoryCmd(spawn_to_left_loader(), trajectory_follower_config),
+    drive_sys.TurnToHeadingCmd(180),
+    DriveTankRawCmd(0.4, 0.4),
+    new DelayCommand(600),
+    DriveTankRawCmd(0.07, 0.07),
+    new DelayCommand(3000),
+
+    // Top-Center Goal
+    intake_sys.IntakeStopCmd(),
+    drive_sys.FollowTrajectoryCmd(left_loader_to_top_center_1(), trajectory_follower_config),
+
+
+
   };
 
   cc.run();
