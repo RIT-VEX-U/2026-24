@@ -25,6 +25,7 @@ void PID_Tuning();
 #endif
 
 bool enable_drive = true;
+bool aimbot = false;
 bool sunroof_lock = false;
 vex::timer input_timer;
 
@@ -182,6 +183,9 @@ void opcontrol_normal() {
   //
   //   #endif
   // });
+  // con.ButtonX.pressed([](){
+  //     aimbot = !aimbot;
+  // });
   con.ButtonB.pressed([](){
     #ifndef SKILLS // Disable sunroof locking in skills
     if(!sunroof_lock) 
@@ -257,8 +261,10 @@ void opcontrol_normal() {
       if(right < DEADBAND && right > -DEADBAND){
         right = 0;
       }
+
+      aimbot = con.ButtonX.pressing();
       if(enable_drive){
-        if (con.ButtonX.pressing()) {
+        if (aimbot) {
           if (odom.get_position().y() < 23.75) {
             drive_sys.drive_line(left, {11, 11}, from_degrees(0), line_cfg);
           } else if (odom.get_position().y() < 72) {

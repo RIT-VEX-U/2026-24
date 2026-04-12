@@ -15,7 +15,7 @@
 #include "core/utils/math/systems/linear_system.h"
 
 struct TankTrajectoryFollowerConfig {
-    std::array<double, 5> q_tolerances{{0.5, 0.1, 0.05, 0.4, 0.4}};
+    std::array<double, 5> q_tolerances{{0.15, 0.1, 0.1, 0.3, 0.3}};
     std::array<double, 2> r_tolerances{{12.0, 12.0}};
     Time dt = 10_ms;
     Velocity max_velocity = 0_inps;

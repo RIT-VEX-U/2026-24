@@ -121,7 +121,7 @@ TankTrajectoryFollowerConfig trajectory_follower_config;
 
 TankTrajectoryFollowerConfig line_cfg = [] {
   TankTrajectoryFollowerConfig cfg;
-  cfg.q_tolerances = {{5, 1, 0.06, 30, 30}};
+  cfg.q_tolerances = {{5, 1.5, 0.3, 20, 20}};
   cfg.r_tolerances = {{12, 12}};
   cfg.dt = 10_ms;
   cfg.max_velocity = 0_inps;
