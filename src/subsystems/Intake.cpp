@@ -28,6 +28,8 @@ void IntakeSys::outbottom(double volts) {
   if(state_unlocked) { intake_volts = volts; intake_state = OUTBOTTOM; } }
 void IntakeSys::outmiddle(double volts) {
   if(state_unlocked) { intake_volts = volts; intake_state = OUTMIDDLE; } }
+void IntakeSys::outmiddleall(double volts) {
+  if(state_unlocked) { intake_volts = volts; intake_state = OUTMIDDLEALL; } }
 void IntakeSys::outtop(double volts) {
   if(state_unlocked) { intake_volts = volts; intake_state = OUTTOP; } }
 void IntakeSys::outback(double volts) {
@@ -147,6 +149,14 @@ void IntakeSys::run_state_machine(bool sorting) {
       spin_motor(top_roller, sorting ? -v : v, top_jammed);
       spin_motor(back_roller, v, back_jammed);
       spin_motor(agitator_roller, -4*ceil(v/4.0), false); // -v for skills, -12 for driver
+      back_score_roller.stop();
+      break;
+
+    case OUTMIDDLEALL:
+      spin_motor(front_roller, v, front_jammed);
+      spin_motor(top_roller, sorting ? -v : v, top_jammed);
+      spin_motor(back_roller, v, back_jammed);
+      spin_motor(agitator_roller, -4*ceil(v/4.0), false); // -v for skills, -12 for driver
       spin_motor(back_score_roller, v, back_score_jammed); // back_score_roller.stop();
       break;
 
@@ -251,6 +261,7 @@ int IntakeSys::thread_fn(void *ptr) {
 AutoCommand *IntakeSys::IntakeCmd(double volts)    { return new FunctionCommand([this, volts]() { intake(volts);    return true; }); }
 AutoCommand *IntakeSys::OutBottomCmd(double volts) { return new FunctionCommand([this, volts]() { outbottom(volts); return true; }); }
 AutoCommand *IntakeSys::OutMiddleCmd(double volts) { return new FunctionCommand([this, volts]() { outmiddle(volts); return true; }); }
+AutoCommand *IntakeSys::OutMiddleAllCmd(double volts) { return new FunctionCommand([this, volts]() { outmiddleall(volts); return true; }); }
 AutoCommand *IntakeSys::OutTopCmd(double volts)    { return new FunctionCommand([this, volts]() { outtop(volts);    return true; }); }
 AutoCommand *IntakeSys::OutBackCmd(double volts)   { return new FunctionCommand([this, volts]() { outback(volts);   return true; }); }
 AutoCommand *IntakeSys::IntakeStopCmd()            { return new FunctionCommand([this]()        { intake_stop();    return true; }); }

@@ -22,6 +22,7 @@ public:
     OUTBACK, // Like the restaurant
     OUTTOP,
     OUTMIDDLE,
+    OUTMIDDLEALL,
     OUTBOTTOM,
     AUTOLOAD = 0x80000000,
     FRONTPURGE,
@@ -43,6 +44,7 @@ public:
   AutoCommand *IntakeCmd(double volts = 12);
   AutoCommand *OutBottomCmd(double volts = 12);
   AutoCommand *OutMiddleCmd(double volts = 12);
+  AutoCommand *OutMiddleAllCmd(double volts = 12);
   AutoCommand *OutTopCmd(double volts = 12);
   AutoCommand *OutBackCmd(double volts = 12);
   AutoCommand *AutoLoadCmd();
@@ -54,6 +56,7 @@ public:
   void intake(double volts = 12);
   void outbottom(double volts = 12);
   void outmiddle(double volts = 12);
+  void outmiddleall(double volts = 12);
   void outtop(double volts = 12);
   void outback(double volts = 12);
   void autoload(double volts = 12);

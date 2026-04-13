@@ -51,7 +51,7 @@ void opcontrol_normal() {
     intake_sys.outbottom(7);
   });
   con.ButtonL1.pressed([](){
-    intake_sys.outmiddle(
+    intake_sys.outmiddleall(
       #ifdef SKILLS // Set voltage to 8 for skills and 9 for driver
       8
       #else

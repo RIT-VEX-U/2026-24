@@ -112,8 +112,27 @@ Trajectory left_loader_to_top_center_1() {
   config.set_start_velocity(0.000_inps);
   config.set_end_velocity(0.000_inps);
   config.set_reversed(true);
+  config.set_track_width(11.8_in);
   config.add_constraint(CentripetalAccelerationConstraint(180.000_inps2));
   config.add_constraint(TankVoltageConstraint(0.119_VpInps, 0.017_VpInps2, 12.000_V, 12.000_in));
+  return TrajectoryGenerator::generate_trajectory(points, config);
+}
+
+Trajectory left_loader_to_top_center_2() {
+  using namespace units::literals;
+
+  std::vector<HermitePoint> points = {
+    {35.000, 80.000, 15.000, 30.000},
+    {59.500, 81.250, 8.000, -8.000},
+  };
+
+  TrajectoryConfig config(60.000_inps, 60.000_inps2);
+  config.set_start_velocity(0.000_inps);
+  config.set_end_velocity(0.000_inps);
+  config.set_reversed(false);
+  config.set_track_width(11.800_in);
+  config.add_constraint(CentripetalAccelerationConstraint(180.000_inps2));
+  config.add_constraint(TankVoltageConstraint(0.119_VpInps, 0.017_VpInps2, 12.000_V, 11.800_in));
   return TrajectoryGenerator::generate_trajectory(points, config);
 }
 
@@ -244,6 +263,10 @@ void left_auto_path() {
 
 void left_awp_path() {
   printf("Build %d\n", LOG);
+
+  Trajectory left_loader_to_top_center = left_loader_to_top_center_1() + left_loader_to_top_center_2();
+  Trajectory top_center_to_bottom_center;
+
   CommandController cc{
     OdomLogCmd(),
 
@@ -259,10 +282,15 @@ void left_awp_path() {
     new DelayCommand(3000),
 
     // Top-Center Goal
+    new Parallel{
+      drive_sys.FollowTrajectoryCmd(left_loader_to_top_center, trajectory_follower_config),
+      new InOrder{new DelayCommand(1250), intake_sys.MatchLoaderCmd(false),  }
+    },
+    intake_sys.OutMiddleCmd(9),
+    new DelayCommand(3000),
     intake_sys.IntakeStopCmd(),
-    drive_sys.FollowTrajectoryCmd(left_loader_to_top_center_1(), trajectory_follower_config),
-
-
+    
+    // Bottom-Center Goal
 
   };
 
