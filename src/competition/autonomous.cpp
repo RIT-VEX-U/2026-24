@@ -30,6 +30,38 @@ AutoCommand *DriveTankRawCmd(double left, double right) {
   });
 }
 
+AutoCommand *RightStickCmd() {
+  return new FunctionCommand([]() {
+    right_stick_solonoid.set(!right_stick_solonoid.value());
+    return true;
+  });
+}
+
+AutoCommand *EOABackupCmd() {
+  return new Async(new FunctionCommand([]() {
+    vex::timer auto_timer;
+
+    uint64_t auto_start = auto_timer.systemHighResolution();
+    bool trigger_once = true;
+
+    while(true) {
+      uint64_t match_time = auto_timer.systemHighResolution() - auto_start;
+      if(match_time > 30000000) {
+        drive_sys.stop();
+        return true;
+      }
+      else if(match_time > 29450000 && trigger_once) {
+        intake_sys.outbottombackpurge(5.5);
+        right_stick_solonoid.set(!right_stick_solonoid.value());
+        drive_sys.drive_tank_raw(-.4, -.4);
+        trigger_once = false;
+      }
+      vexDelay(100);
+    }
+    return false;
+  }));
+}
+
 AutoCommand *OdomLogCmd() {
   return new Async(new FunctionCommand([]() {
       while (true) {
@@ -68,7 +100,7 @@ Trajectory spawn_to_left_loader() {
 
   std::vector<HermitePoint> points = {
     {19.500, 86.500, 0.000, 25.000},
-    {14.000, 115.250, -90.000, -1.000},
+    {14.000, 115.000, -90.000, -1.000},
   };
 
   TrajectoryConfig config(60.000_inps, 70.000_inps2);
@@ -123,7 +155,7 @@ Trajectory left_loader_to_top_center_2() {
 
   std::vector<HermitePoint> points = {
     {35.000, 80.000, 15.000, 30.000},
-    {59.500, 81.250, 8.000, -8.000},
+    {60.000, 80.750, 8.000, -8.000}, // 59.5, 81.25
   };
 
   TrajectoryConfig config(60.000_inps, 60.000_inps2);
@@ -131,6 +163,24 @@ Trajectory left_loader_to_top_center_2() {
   config.set_end_velocity(0.000_inps);
   config.set_reversed(false);
   config.set_track_width(11.800_in);
+  config.add_constraint(CentripetalAccelerationConstraint(180.000_inps2));
+  config.add_constraint(TankVoltageConstraint(0.119_VpInps, 0.017_VpInps2, 12.000_V, 11.800_in));
+  return TrajectoryGenerator::generate_trajectory(points, config);
+}
+
+Trajectory top_center_to_bottom_center_1() {
+  using namespace units::literals;
+
+  std::vector<HermitePoint> points = {
+    {56.000, 84.250, -20.000, 5.000},
+    {40.000, 75.000, 0.000, -25.000},
+    {57.000, 52.500, 8.000, -8.000},
+  };
+
+  TrajectoryConfig config(60.000_inps, 60.000_inps2);
+  config.set_start_velocity(0.000_inps);
+  config.set_end_velocity(0.000_inps);
+  config.set_reversed(true);
   config.add_constraint(CentripetalAccelerationConstraint(180.000_inps2));
   config.add_constraint(TankVoltageConstraint(0.119_VpInps, 0.017_VpInps2, 12.000_V, 11.800_in));
   return TrajectoryGenerator::generate_trajectory(points, config);
@@ -264,10 +314,16 @@ void left_auto_path() {
 void left_awp_path() {
   printf("Build %d\n", LOG);
 
+  int ml10 = 3100, ml11 = 3500; //ms
+  int& time_match_loading = ml10;
+
+  int wait_score_middle = 0; // ms
+
   Trajectory left_loader_to_top_center = left_loader_to_top_center_1() + left_loader_to_top_center_2();
-  Trajectory top_center_to_bottom_center;
+  Trajectory top_center_to_bottom_center = top_center_to_bottom_center_1();
 
   CommandController cc{
+    EOABackupCmd(),
     OdomLogCmd(),
 
     // Matchloader
@@ -279,19 +335,30 @@ void left_awp_path() {
     DriveTankRawCmd(0.4, 0.4),
     new DelayCommand(600),
     DriveTankRawCmd(0.07, 0.07),
-    new DelayCommand(3000),
+    new DelayCommand(time_match_loading),
+    intake_sys.HopperSkipCmd(),
 
     // Top-Center Goal
     new Parallel{
       drive_sys.FollowTrajectoryCmd(left_loader_to_top_center, trajectory_follower_config),
-      new InOrder{new DelayCommand(1250), intake_sys.MatchLoaderCmd(false),  }
+      new InOrder{new DelayCommand(1250), intake_sys.MatchLoaderCmd(false), }
     },
-    intake_sys.OutMiddleCmd(9),
-    new DelayCommand(3000),
+    new DelayCommand(wait_score_middle),
+    intake_sys.OutMiddleCmd(7.5),
+    new DelayCommand(2000),
+    intake_sys.IntakeCmd(),
+    new DelayCommand(100),
     intake_sys.IntakeStopCmd(),
     
     // Bottom-Center Goal
-
+    drive_sys.FollowTrajectoryCmd(top_center_to_bottom_center, trajectory_follower_config),
+    drive_sys.TurnToHeadingCmd(45),
+    DriveTankRawCmd(.4, .4),
+    new DelayCommand(650),
+    SunroofSolCmd(false),
+    intake_sys.OutBottomBackPurgeCmd(3),
+    RightStickCmd(),
+    DriveTankRawCmd(.1, .1),
   };
 
   cc.run();

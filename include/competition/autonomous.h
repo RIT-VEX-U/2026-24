@@ -7,5 +7,6 @@ extern void (*autonomous)();
 
 void right_auto_path();
 void left_auto_path();
+void right_awp_path();
 void left_awp_path();
 void skills_path();

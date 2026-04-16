@@ -21,9 +21,11 @@ public:
     IN,
     OUTBACK, // Like the restaurant
     OUTTOP,
-    OUTMIDDLE,
+    OUTMIDDLE, // Auto-only
     OUTMIDDLEALL,
     OUTBOTTOM,
+    OUTBOTTOMBACKPURGE, // Auto-only
+    HOPPERSKIP, // Auto-only
     AUTOLOAD = 0x80000000,
     FRONTPURGE,
     HOPPERRETURN,
@@ -43,10 +45,12 @@ public:
 
   AutoCommand *IntakeCmd(double volts = 12);
   AutoCommand *OutBottomCmd(double volts = 12);
+  AutoCommand *OutBottomBackPurgeCmd(double volts = 12);
   AutoCommand *OutMiddleCmd(double volts = 12);
   AutoCommand *OutMiddleAllCmd(double volts = 12);
   AutoCommand *OutTopCmd(double volts = 12);
   AutoCommand *OutBackCmd(double volts = 12);
+  AutoCommand *HopperSkipCmd(double volts = 12);
   AutoCommand *AutoLoadCmd();
   AutoCommand *FrontPurgeCmd();
   AutoCommand *IntakeStopCmd();
@@ -55,6 +59,7 @@ public:
 
   void intake(double volts = 12);
   void outbottom(double volts = 12);
+  void outbottombackpurge(double volts = 12);
   void outmiddle(double volts = 12);
   void outmiddleall(double volts = 12);
   void outtop(double volts = 12);
@@ -62,6 +67,7 @@ public:
   void autoload(double volts = 12);
   void frontpurge(double volts = 12);
   void hopperreturn(double volts = 12);
+  void hopperskip(double volts = 12);
   void esquebot(double volts = 12);
   void esquescore(double volts = 12);
   void intake_stop();

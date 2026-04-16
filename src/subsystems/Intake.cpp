@@ -26,6 +26,8 @@ void IntakeSys::intake(double volts) {
   if(state_unlocked) { intake_volts = volts; intake_state = IN; } }
 void IntakeSys::outbottom(double volts) { 
   if(state_unlocked) { intake_volts = volts; intake_state = OUTBOTTOM; } }
+void IntakeSys::outbottombackpurge(double volts) {
+  if(state_unlocked) { intake_volts = volts; intake_state = OUTBOTTOMBACKPURGE; } }
 void IntakeSys::outmiddle(double volts) {
   if(state_unlocked) { intake_volts = volts; intake_state = OUTMIDDLE; } }
 void IntakeSys::outmiddleall(double volts) {
@@ -40,6 +42,8 @@ void IntakeSys::frontpurge(double volts) {
   if(state_unlocked) { intake_volts = volts; intake_state = FRONTPURGE; } }
 void IntakeSys::hopperreturn(double volts) {
   if(state_unlocked) { intake_volts = volts; intake_state = HOPPERRETURN; } }
+void IntakeSys::hopperskip(double volts) {
+  if(state_unlocked) { intake_volts = volts; intake_state = HOPPERSKIP; } }
 void IntakeSys::esquebot(double volts) {
   if(state_unlocked) { intake_volts = volts; intake_state = ESQUEBOT; } }
 void IntakeSys::esquescore(double volts) {
@@ -144,11 +148,22 @@ void IntakeSys::run_state_machine(bool sorting) {
       back_score_roller.stop();
       break;
 
+    case OUTBOTTOMBACKPURGE:
+      // Out Bottom
+      spin_motor(front_roller, -v, front_jammed);
+      spin_motor(back_roller, v, back_jammed);
+      spin_motor(agitator_roller, -12, false);
+
+      // Back Purge
+      spin_motor(top_roller, 12, top_jammed);
+      spin_motor(back_score_roller, -12, back_score_jammed);
+      break;
+
     case OUTMIDDLE:
       spin_motor(front_roller, v, front_jammed);
       spin_motor(top_roller, sorting ? -v : v, top_jammed);
-      spin_motor(back_roller, v, back_jammed);
-      spin_motor(agitator_roller, -4*ceil(v/4.0), false); // -v for skills, -12 for driver
+      spin_motor(back_roller, clamp(v+1.5, -12, 12), back_jammed);
+      spin_motor(agitator_roller, -12, false);
       back_score_roller.stop();
       break;
 
@@ -234,6 +249,14 @@ void IntakeSys::run_state_machine(bool sorting) {
       spin_motor(agitator_roller, v, false);
       spin_motor(back_score_roller, v, back_score_jammed);
       break;
+    
+    case HOPPERSKIP:
+      agitator_roller.stop();
+      back_roller.stop();
+      spin_motor(front_roller, v, front_jammed);
+      spin_motor(top_roller, -v, top_jammed);
+      spin_motor(back_score_roller, -v, back_score_jammed);
+      break;
   }
 
   prevBlock = currentBlock;
@@ -260,10 +283,12 @@ int IntakeSys::thread_fn(void *ptr) {
 
 AutoCommand *IntakeSys::IntakeCmd(double volts)    { return new FunctionCommand([this, volts]() { intake(volts);    return true; }); }
 AutoCommand *IntakeSys::OutBottomCmd(double volts) { return new FunctionCommand([this, volts]() { outbottom(volts); return true; }); }
+AutoCommand *IntakeSys::OutBottomBackPurgeCmd(double volts) { return new FunctionCommand([this, volts]() { outbottombackpurge(volts); return true; }); }
 AutoCommand *IntakeSys::OutMiddleCmd(double volts) { return new FunctionCommand([this, volts]() { outmiddle(volts); return true; }); }
 AutoCommand *IntakeSys::OutMiddleAllCmd(double volts) { return new FunctionCommand([this, volts]() { outmiddleall(volts); return true; }); }
 AutoCommand *IntakeSys::OutTopCmd(double volts)    { return new FunctionCommand([this, volts]() { outtop(volts);    return true; }); }
 AutoCommand *IntakeSys::OutBackCmd(double volts)   { return new FunctionCommand([this, volts]() { outback(volts);   return true; }); }
+AutoCommand *IntakeSys::HopperSkipCmd(double volts){ return new FunctionCommand([this, volts]() { hopperskip(volts);return true; }); }
 AutoCommand *IntakeSys::IntakeStopCmd()            { return new FunctionCommand([this]()        { intake_stop();    return true; }); }
 AutoCommand *IntakeSys::AutoLoadCmd()              { return new FunctionCommand([this]()        { autoload();       return true; }); }
 AutoCommand *IntakeSys::FrontPurgeCmd()            { return new FunctionCommand([this]()        { frontpurge();     return true; }); }
