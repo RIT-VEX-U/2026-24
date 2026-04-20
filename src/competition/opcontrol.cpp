@@ -207,10 +207,10 @@ void opcontrol_normal() {
       #endif
     }
     else {
-      #ifndef SKILLS
+      /*#ifndef SKILLS
         sunroof_lock = true;          // Lock sunroof
       #endif
-      sunroof_solonoid.set(true);   // Lower sunroof
+      sunroof_solonoid.set(true);   // Lower sunroof*/
       intake_sys.match_load(true);  // Lower matchloader
       intake_sys.autoload();        // Automatic Match Load
       #ifdef SKILLS
@@ -242,10 +242,10 @@ void opcontrol_normal() {
 
     #ifndef SKILLS // Lock and unlock sunroof in driver, but not in skills
     if(intake_state == IntakeSys::ESQUESCORE) sunroof_lock = false;
-    if(intake_state != IntakeSys::FRONTPURGE && intake_state != IntakeSys::AUTOLOAD && prev_state == IntakeSys::FRONTPURGE) {
+    /*if(intake_state != IntakeSys::FRONTPURGE && intake_state != IntakeSys::AUTOLOAD && prev_state == IntakeSys::FRONTPURGE) {
       sunroof_lock = false;
       sunroof_solonoid.set(false);
-    }
+    }*/
     #endif
 
     double left;
@@ -268,6 +268,7 @@ void opcontrol_normal() {
       aimbot = con.ButtonB.pressing();
       if(enable_drive){
         if (aimbot) {
+          left *= 0.9;
           if (odom.get_position().y() < 23.75) {
             drive_sys.drive_line(left, {11, 11}, from_degrees(0), line_cfg);
           } else if (odom.get_position().y() < 72) {
