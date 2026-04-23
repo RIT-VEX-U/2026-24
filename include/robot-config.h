@@ -14,6 +14,7 @@
 
 extern vex::controller con;
 extern vex::brain Brain;
+extern vex::competition comp;
 
 //MOTORS
 

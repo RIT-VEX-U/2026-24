@@ -293,7 +293,7 @@ void opcontrol_normal() {
 }
 
 void opcontrol() {
-  odom.set_position({42, 24, from_degrees(180)});
+  //odom.set_position({42, 24, from_degrees(180)});
   opcontrol_normal();
 }
 

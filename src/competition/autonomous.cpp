@@ -10,7 +10,7 @@
 
 #include "core/utils/trajectory/trajectory.h"
 
-#define LOG 5
+#define LOG 7
 
 void (*autonomous)() = right_awp_path;
 
@@ -48,7 +48,7 @@ AutoCommand *EOABackupCmd() {
     uint64_t auto_start = auto_timer.systemHighResolution();
     bool trigger_once = true;
 
-    while(true) {
+    while(comp.isEnabled() && comp.isAutonomous()) {
       uint64_t match_time = auto_timer.systemHighResolution() - auto_start;
       if(match_time > 30000000) {
         drive_sys.stop();
@@ -159,7 +159,7 @@ Trajectory left_loader_to_top_center_2() {
 
   std::vector<HermitePoint> points = {
     {35.000, 80.000, 15.000, 30.000},
-    {60.000, 80.750, 8.000, -8.000}, // 59.5, 81.25
+    {59.750, 80.000, 8.000, -8.000}//{59.750, 80.500, 8.000, -8.000}, // 60, 80.75 // 59.5, 81.25
   };
 
   TrajectoryConfig config(60.000_inps, 60.000_inps2);
@@ -214,7 +214,7 @@ Trajectory right_loader_to_top_center_2() {
 
   std::vector<HermitePoint> points = {
     {53.250, 94.000, 10.000, -10.000},
-    {59.211, 83.732, 10.000, -10.000},
+    {59.211, 83.232, 10.000, -10.000}, //59.461 83.482
   };
 
   TrajectoryConfig config(60.000_inps, 60.000_inps2);
@@ -346,23 +346,22 @@ void left_awp_path() {
     SunroofSolCmd(true),
     intake_sys.AutoLoadCmd(),
     drive_sys.FollowTrajectoryCmd(spawn_to_left_loader(), trajectory_follower_config),
-    drive_sys.TurnToHeadingCmd(180),
+    //drive_sys.TurnToHeadingCmd(180),
     DriveTankRawCmd(0.4, 0.4),
     new DelayCommand(600),
     DriveTankRawCmd(0.07, 0.07),
     new DelayCommand(time_match_loading),
-    intake_sys.HopperSkipCmd(),
 
     // Top-Center Goal
     new Parallel{
       drive_sys.FollowTrajectoryCmd(left_loader_to_top_center, trajectory_follower_config),
-      new InOrder{new DelayCommand(1250), intake_sys.MatchLoaderCmd(false), }
+      new InOrder{intake_sys.HopperSkipCmd(), new DelayCommand(1250), intake_sys.MatchLoaderCmd(false), }
     },
     new DelayCommand(wait_score_middle),
-    intake_sys.OutMiddleCmd(7.5),
+    intake_sys.OutMiddleCmd(9),
     new DelayCommand(2000),
-    intake_sys.IntakeCmd(),
-    new DelayCommand(200),
+    //intake_sys.TopRollerCmd(-4),
+    //new DelayCommand(100),
     intake_sys.IntakeStopCmd(),
     
     // Bottom-Center Goal
@@ -370,9 +369,11 @@ void left_awp_path() {
     drive_sys.TurnToHeadingCmd(45),
     DriveTankRawCmd(.4, .4),
     new DelayCommand(650),
+    RightStickCmd(),
+    intake_sys.FrontRollerCmd(-4),
+    new DelayCommand(1750),
     SunroofSolCmd(false),
     intake_sys.OutBottomBackPurgeCmd(3),
-    RightStickCmd(),
     DriveTankRawCmd(.1, .1),
   };
 
@@ -396,7 +397,7 @@ void right_awp_path() {
     SunroofSolCmd(true),
     intake_sys.AutoLoadCmd(),
     drive_sys.FollowTrajectoryCmd(spawn_to_right_loader(), trajectory_follower_config),
-    drive_sys.TurnToHeadingCmd(180)->withTimeout(1.25),
+    //drive_sys.TurnToHeadingCmd(180)->withTimeout(1.25),
     DriveTankRawCmd(0.4, 0.4),
     new DelayCommand(700),
     DriveTankRawCmd(0.07, 0.07),
@@ -412,10 +413,10 @@ void right_awp_path() {
     drive_sys.FollowTrajectoryCmd(right_loader_to_top_center_2(), trajectory_follower_config),
     drive_sys.TurnToHeadingCmd(-45),
     new DelayCommand(wait_score_middle),
-    intake_sys.OutMiddleCmd(7.5),
+    intake_sys.OutMiddleCmd(9), // was 7.5
     new DelayCommand(2000),
-    intake_sys.OutMiddleCmd(-7.5),//intake_sys.IntakeCmd(), // Change wasn't made in left_awp_path
-    new DelayCommand(200),
+    //intake_sys.TopRollerCmd(-4),//intake_sys.OutMiddleCmd(-9),//intake_sys.IntakeCmd(),
+    //new DelayCommand(100),
     intake_sys.IntakeStopCmd(),
 
     // Bottom-Center Goal
@@ -423,9 +424,11 @@ void right_awp_path() {
     drive_sys.TurnToHeadingCmd(45),
     DriveTankRawCmd(.4, .4),
     new DelayCommand(650),
+    RightStickCmd(),
+    intake_sys.FrontRollerCmd(-4),
+    new DelayCommand(1750),
     SunroofSolCmd(false),
     intake_sys.OutBottomBackPurgeCmd(3),
-    RightStickCmd(),
     DriveTankRawCmd(.1, .1),
   };
 

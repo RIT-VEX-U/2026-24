@@ -26,6 +26,8 @@ public:
     OUTBOTTOM,
     OUTBOTTOMBACKPURGE, // Auto-only
     HOPPERSKIP, // Auto-only
+    FRONTROLLER, // Auto-only
+    TOPROLLER, // Auto-only
     AUTOLOAD = 0x80000000,
     FRONTPURGE,
     HOPPERRETURN,
@@ -51,6 +53,8 @@ public:
   AutoCommand *OutTopCmd(double volts = 12);
   AutoCommand *OutBackCmd(double volts = 12);
   AutoCommand *HopperSkipCmd(double volts = 12);
+  AutoCommand *FrontRollerCmd(double volts = 12);
+  AutoCommand *TopRollerCmd(double volts = 12);
   AutoCommand *AutoLoadCmd();
   AutoCommand *FrontPurgeCmd();
   AutoCommand *IntakeStopCmd();
@@ -64,6 +68,8 @@ public:
   void outmiddleall(double volts = 12);
   void outtop(double volts = 12);
   void outback(double volts = 12);
+  void frontroller(double volts = 12);
+  void toproller(double volts = 12);
   void autoload(double volts = 12);
   void frontpurge(double volts = 12);
   void hopperreturn(double volts = 12);
