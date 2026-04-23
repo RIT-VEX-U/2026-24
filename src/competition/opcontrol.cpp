@@ -68,6 +68,7 @@ void opcontrol_normal() {
   });
   con.ButtonDown.pressed([](){
     // right_wing_solonoid.set(true);
+    if(intake_sys.get_intake_state() == intake_sys.ESQUESCORE) intake_sys.intake_stop();
     left_wing_solonoid.set(true);
   });
   con.ButtonDown.released([](){
