@@ -273,7 +273,7 @@ void opcontrol_normal() {
           if (odom.get_position().y() < 23.75) {
             drive_sys.drive_line(left, {11, 11}, from_degrees(0), line_cfg);
           } else if (odom.get_position().y() < 72) {
-            drive_sys.drive_line(left, {36.2, 36.2}, from_degrees(180), line_cfg);
+            drive_sys.drive_line(left, {36.45, 36.45}, from_degrees(180), line_cfg);
           } else if (odom.get_position().y() < 118) {
             drive_sys.drive_line(left, {104.5, 104.5}, from_degrees(0), line_cfg);
           } else {

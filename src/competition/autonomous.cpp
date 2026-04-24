@@ -12,7 +12,7 @@
 
 #define LOG 7
 
-void (*autonomous)() = right_awp_path;
+void (*autonomous)() = left_auto_path;
 
 // --- AutoCommands ---
 
@@ -277,33 +277,19 @@ void left_auto_path() {
   printf("Build %d\n", LOG);
   intake_sys.auto_fix_jamming(true);
   CommandController cc{
-    new Async(new FunctionCommand([]() {
-      while (true) {
-        printf(
-          "ODO X: %f ODO Y: %f, ODO ROT: %f\n", odom.get_position().x(),
-          odom.get_position().y(), odom.get_position().rotation().degrees()
-        );
-        vexDelay(100);
-      }
-      return true;
-    }) ),
-
-    // Starts at {19.5, 86.5, from_degrees(90)}
+    OdomLogCmd(),
 
     // Matchloader
     intake_sys.MatchLoaderCmd(true),
-    drive_sys.DriveForwardCmd(32.75, vex::forward, 0.8)->withTimeout(1.5),
-    drive_sys.TurnToHeadingCmd(180, .8)->withTimeout(2.25),
     SunroofSolCmd(true),
     intake_sys.AutoLoadCmd(),
+    drive_sys.FollowTrajectoryCmd(spawn_to_left_loader(), trajectory_follower_config),
     DriveTankRawCmd(0.4, 0.4),
     new DelayCommand(600),
-    DriveTankRawCmd(0.1, 0.1),
-    new DelayCommand(4500),
+    DriveTankRawCmd(0.07, 0.07),
+    new DelayCommand(3200),
 
     // Leaving Matchloader
-    intake_sys.MatchLoaderCmd(false),
-    SunroofSolCmd(false),
     intake_sys.FrontPurgeCmd(),
 
     // Long goal (drive to and score)
@@ -313,8 +299,13 @@ void left_auto_path() {
         //drive_sys.DriveToPointCmd({43.25, 118}, vex::reverse, 0.8, 0.8)->withTimeout(2), 
         drive_sys.DriveForwardCmd(33, vex::reverse, 0.8, 0.8)->withTimeout(2),
         DriveTankRawCmd(-0.45, -0.45)}))->withTimeout(3),
-      (new InOrder({new DelayCommand(650), intake_sys.OutBackCmd()}))->withTimeout(3),
-    }),
+      }),
+      (new InOrder({
+        new DelayCommand(200), 
+        intake_sys.MatchLoaderCmd(false), SunroofSolCmd(false),
+        new DelayCommand(550),
+        intake_sys.OutBackCmd()
+      })),
     new DelayCommand(3950),
 
     DriveTankRawCmd(0.5, 0.5),
