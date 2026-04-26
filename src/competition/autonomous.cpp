@@ -12,7 +12,7 @@
 
 #define LOG 7
 
-void (*autonomous)() = left_auto_path;
+void (*autonomous)() = right_awp_path;
 
 // --- AutoCommands ---
 
@@ -55,7 +55,7 @@ AutoCommand *EOABackupCmd() {
         intake_sys.intake_stop();
         return true;
       }
-      else if(match_time > 29650000 && trigger_once) {
+      else if(match_time > 29450000 && trigger_once) {
         intake_sys.outbottombackpurge(5);
         right_stick_solonoid.set(!right_stick_solonoid.value());
         drive_sys.drive_tank_raw(-.6, -.6);
@@ -105,7 +105,7 @@ Trajectory spawn_to_left_loader() {
 
   std::vector<HermitePoint> points = {
     {19.500, 86.500, 0.000, 25.000},
-    {14.000, 115.000, -90.000, -1.000},
+    {14.000, 114.500, -90.000, -1.000},
   };
 
   TrajectoryConfig config(60.000_inps, 70.000_inps2);
@@ -159,7 +159,7 @@ Trajectory left_loader_to_top_center_2() {
 
   std::vector<HermitePoint> points = {
     {35.000, 80.000, 15.000, 30.000},
-    {59.750, 80.000, 8.000, -8.000}//{59.750, 80.500, 8.000, -8.000}, // 60, 80.75 // 59.5, 81.25
+    {60.250, 79.500, 8.000, -8.000}//{59.750, 80.000, 8.000, -8.000}//{59.750, 80.500, 8.000, -8.000}, // 60, 80.75 // 59.5, 81.25
   };
 
   TrajectoryConfig config(60.000_inps, 60.000_inps2);
@@ -178,7 +178,7 @@ Trajectory top_center_to_bottom_center_1() {
   std::vector<HermitePoint> points = {
     {56.000, 84.250, -20.000, 5.000},
     {40.000, 75.000, 0.000, -25.000},
-    {57.000, 52.500, 8.000, -8.000},
+    {57.750, 51.750, 8.000, -8.000}, // 57, 52.5
   };
 
   TrajectoryConfig config(60.000_inps, 60.000_inps2);
@@ -244,7 +244,7 @@ void right_auto_path() {
     drive_sys.FollowTrajectoryCmd(spawn_to_right_loader(), trajectory_follower_config),
     DriveTankRawCmd(0.4, 0.4),
     new DelayCommand(600),
-    DriveTankRawCmd(0.07, 0.07),
+    //DriveTankRawCmd(0.07, 0.07),
     new DelayCommand(3200),
 
     // Leaving Matchloader
@@ -286,7 +286,7 @@ void left_auto_path() {
     drive_sys.FollowTrajectoryCmd(spawn_to_left_loader(), trajectory_follower_config),
     DriveTankRawCmd(0.4, 0.4),
     new DelayCommand(600),
-    DriveTankRawCmd(0.07, 0.07),
+    //DriveTankRawCmd(0.07, 0.07),
     new DelayCommand(3200),
 
     // Leaving Matchloader
@@ -338,9 +338,9 @@ void left_awp_path() {
     intake_sys.AutoLoadCmd(),
     drive_sys.FollowTrajectoryCmd(spawn_to_left_loader(), trajectory_follower_config),
     //drive_sys.TurnToHeadingCmd(180),
-    DriveTankRawCmd(0.4, 0.4),
+    DriveTankRawCmd(0.4, 0.4), // .4 .4
     new DelayCommand(600),
-    DriveTankRawCmd(0.07, 0.07),
+    //DriveTankRawCmd(0.07, 0.07), // .07 .07
     new DelayCommand(time_match_loading),
 
     // Top-Center Goal
@@ -391,7 +391,7 @@ void right_awp_path() {
     //drive_sys.TurnToHeadingCmd(180)->withTimeout(1.25),
     DriveTankRawCmd(0.4, 0.4),
     new DelayCommand(700),
-    DriveTankRawCmd(0.07, 0.07),
+    //DriveTankRawCmd(0.07, 0.07),
     new DelayCommand(time_match_loading),
     intake_sys.HopperSkipCmd(),
 
@@ -402,7 +402,7 @@ void right_awp_path() {
     },
     drive_sys.TurnToHeadingCmd(-45),
     drive_sys.FollowTrajectoryCmd(right_loader_to_top_center_2(), trajectory_follower_config),
-    drive_sys.TurnToHeadingCmd(-45),
+    //drive_sys.TurnToHeadingCmd(-45),
     new DelayCommand(wait_score_middle),
     intake_sys.OutMiddleCmd(9), // was 7.5
     new DelayCommand(2000),

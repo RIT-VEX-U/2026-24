@@ -165,7 +165,7 @@ void IntakeSys::run_state_machine(bool sorting) {
 
     case OUTMIDDLE:
       spin_motor(front_roller, v, front_jammed);
-      spin_motor(top_roller, 0.5*(sorting ? -v : v), top_jammed);
+      spin_motor(top_roller, 0.7*(sorting ? -v : v), top_jammed);
       spin_motor(back_roller, clamp(v+(sign(v)*1.5), -12, 12), back_jammed);
       spin_motor(agitator_roller, -12, false);
       back_score_roller.stop();
