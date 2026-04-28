@@ -255,8 +255,11 @@ void IntakeSys::run_state_machine(bool sorting) {
       break;
     
     case HOPPERSKIP:
-      agitator_roller.stop();
-      back_roller.stop();
+      //agitator_roller.stop();
+      //back_roller.stop();
+      spin_motor(back_roller, -v, back_jammed);
+      spin_motor(agitator_roller, v, false);
+
       spin_motor(front_roller, v, front_jammed);
       spin_motor(top_roller, -v, top_jammed);
       spin_motor(back_score_roller, -v, back_score_jammed);
@@ -265,7 +268,7 @@ void IntakeSys::run_state_machine(bool sorting) {
     case FRONTROLLER:
       agitator_roller.stop();
       back_roller.stop();
-      top_roller.stop();
+      spin_motor(top_roller, v, front_jammed);//top_roller.stop();
       back_score_roller.stop();
       spin_motor(front_roller, v, front_jammed);
       break;

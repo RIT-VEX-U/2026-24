@@ -37,9 +37,11 @@ constexpr auto kOpenLoopTurnMaxAngularVelocity = 6.0_radps;
 constexpr auto kOpenLoopTurnMaxAngularAcceleration = 10.0_radps2;
 }
 
-
-
-
+#ifdef LEFT
+Pose2d lidar_reset(40, 118, from_degrees(180));
+#else
+Pose2d lidar_reset(40, 24, from_degrees(180));
+#endif
 
 void opcontrol_normal() {
   intake_sys.auto_fix_jamming(false);
@@ -64,7 +66,7 @@ void opcontrol_normal() {
   });
 
   con.ButtonLeft.pressed([](){
-    intake_sys.outbottom();
+    lidar.reset_ukf(lidar_reset);
   });
   con.ButtonDown.pressed([](){
     // right_wing_solonoid.set(true);
@@ -271,7 +273,7 @@ void opcontrol_normal() {
         if (aimbot) {
           left *= 0.9;
           if (odom.get_position().y() < 23.75) {
-            drive_sys.drive_line(left, {11, 11}, from_degrees(0), line_cfg);
+            drive_sys.drive_line(left, {9, 9}, from_degrees(0), line_cfg);
           } else if (odom.get_position().y() < 72) {
             drive_sys.drive_line(left, {36.45, 36.45}, from_degrees(180), line_cfg);
           } else if (odom.get_position().y() < 118) {

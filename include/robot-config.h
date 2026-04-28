@@ -12,6 +12,9 @@
 #include <vex_optical.h>
 #include <vex_triport.h>
 
+//#define LEFT
+#define AWP
+
 extern vex::controller con;
 extern vex::brain Brain;
 extern vex::competition comp;

@@ -177,6 +177,7 @@ void LidarReceiver::reset_ukf(const Pose2d& initial_pose) {
     EMat<3, 3> initialP{{2, 0, 0},
                         {0, 2, 0},
                         {0, 0, 0.00025}};
+//                        {0, 0, .001}};
     ukf_.set_P(initialP);
     
     last_predict_us_ = vexSystemHighResTimeGet() - init_us;

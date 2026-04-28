@@ -12,7 +12,19 @@
 
 #define LOG 7
 
+#ifdef LEFT
+#ifdef AWP
+void (*autonomous)() = left_awp_path;
+#else // 11b
+void (*autonomous)() = left_auto_path;
+#endif
+#else //RIGHT
+#ifdef AWP
 void (*autonomous)() = right_awp_path;
+#else // 11b
+void (*autonomous)() = right_auto_path;
+#endif
+#endif
 
 // --- AutoCommands ---
 
@@ -178,7 +190,8 @@ Trajectory top_center_to_bottom_center_1() {
   std::vector<HermitePoint> points = {
     {56.000, 84.250, -20.000, 5.000},
     {40.000, 75.000, 0.000, -25.000},
-    {57.750, 51.750, 8.000, -8.000}, // 57, 52.5
+    //{57.750, 51.750, 8.000, -8.000}, // 57, 52.5
+    {58.250, 51.250, 8.000, -8.000},
   };
 
   TrajectoryConfig config(60.000_inps, 60.000_inps2);
@@ -361,7 +374,7 @@ void left_awp_path() {
     DriveTankRawCmd(.4, .4),
     new DelayCommand(650),
     RightStickCmd(),
-    intake_sys.FrontRollerCmd(-4),
+    intake_sys.FrontRollerCmd(-6),
     new DelayCommand(1750),
     SunroofSolCmd(false),
     intake_sys.OutBottomBackPurgeCmd(3),
@@ -408,7 +421,7 @@ void right_awp_path() {
     new DelayCommand(2000),
     //intake_sys.TopRollerCmd(-4),//intake_sys.OutMiddleCmd(-9),//intake_sys.IntakeCmd(),
     //new DelayCommand(100),
-    intake_sys.IntakeStopCmd(),
+    intake_sys.IntakeStopCmd(), new DelayCommand(5000), // this delay is counter-pvrx
 
     // Bottom-Center Goal
     drive_sys.FollowTrajectoryCmd(top_center_to_bottom_center_1(), trajectory_follower_config),
@@ -416,7 +429,7 @@ void right_awp_path() {
     DriveTankRawCmd(.4, .4),
     new DelayCommand(650),
     RightStickCmd(),
-    intake_sys.FrontRollerCmd(-4),
+    intake_sys.FrontRollerCmd(-6),
     new DelayCommand(1750),
     SunroofSolCmd(false),
     intake_sys.OutBottomBackPurgeCmd(3),
